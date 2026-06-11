@@ -1,60 +1,70 @@
-import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { Button, Input } from 'antd';
+import { Alert, Button, Card, Form, Input, Typography } from 'antd';
+import { MailOutlined, LockOutlined } from '@ant-design/icons';
 import { loginAuth } from '../../features';
 
+const { Title, Text } = Typography;
+
 export const LoginPage = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
   const dispatch = useDispatch();
   const { loading, error } = useSelector((state) => state.auth);
 
-  const handleSubmit = (event) => {
-    event.preventDefault();
+  const handleFinish = ({ email, password }) => {
     dispatch(loginAuth({ email, password }));
   };
 
   return (
-    <div className="max-w-xs mx-auto">
-      <h1 className="text-2xl font-light text-stone-800 mb-8">Вход</h1>
-      <form onSubmit={handleSubmit} className="space-y-4">
-        <div>
-          <label className="block text-sm text-stone-500 mb-1">Email</label>
-          <Input
-            value={email}
-            onChange={(event) => setEmail(event.target.value)}
-            required
-            className="w-full"
-          />
+    <div className="min-h-[calc(100vh-8rem)] grid place-items-center px-4">
+      <Card className="w-full max-w-sm shadow-lg" styles={{ body: { padding: 32 } }}>
+        <div className="text-center mb-6">
+          <span className="grid place-items-center w-14 h-14 rounded-2xl bg-[#9850fd] text-white text-2xl mx-auto mb-3">
+            🐾
+          </span>
+          <Title level={3} className="!mb-1">
+            Вход
+          </Title>
+          <Text type="secondary">Войдите, чтобы посмотреть каталог</Text>
         </div>
-        <div>
-          <label className="block text-sm text-stone-500 mb-1">Пароль</label>
-          <Input.Password
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            required
-            className="w-full"
-          />
-          {/* <input
-            type="password"
-            value={password}
-            onChange={(event) => setPassword(event.target.value)}
-            required
-            className="w-full border border-stone-200 rounded px-3 py-2 text-stone-800 focus:outline-none focus:border-stone-400"
-          /> */}
-        </div>
-        {error && <p className="text-sm text-red-500">{error}</p>}
-        <Button type="primary" htmlType="submit" disabled={loading} className="w-full">
-          {loading ? 'Вход...' : 'Войти'}
-        </Button>
-        {/* <button
-          type="submit"
-          disabled={loading}
-          className="w-full py-2 px-4 bg-stone-800 text-white rounded hover:bg-stone-700 disabled:opacity-50 text-sm font-medium"
-        >
-          {loading ? 'Вход...' : 'Войти'}
-        </button> */}
-      </form>
+
+        <Form layout="vertical" requiredMark={false} onFinish={handleFinish}>
+          <Form.Item
+            name="email"
+            label="Email"
+            rules={[
+              { required: true, message: 'Введите email' },
+              { type: 'email', message: 'Некорректный email' },
+            ]}
+          >
+            <Input
+              prefix={<MailOutlined className="text-stone-400" />}
+              placeholder="you@example.com"
+              size="large"
+            />
+          </Form.Item>
+          <Form.Item
+            name="password"
+            label="Пароль"
+            rules={[
+              { required: true, message: 'Введите пароль' },
+              { min: 6, message: 'Минимум 6 символов' },
+            ]}
+          >
+            <Input.Password
+              prefix={<LockOutlined className="text-stone-400" />}
+              placeholder="••••••••"
+              size="large"
+            />
+          </Form.Item>
+
+          {error && <Alert type="error" message={error} showIcon className="mb-4" />}
+
+          <Form.Item className="!mb-0 !mt-6">
+            <Button type="primary" htmlType="submit" size="large" block loading={loading}>
+              Войти
+            </Button>
+          </Form.Item>
+        </Form>
+      </Card>
     </div>
   );
 };
