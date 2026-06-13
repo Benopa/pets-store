@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { ConflictException, Injectable, NotFoundException } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
@@ -16,11 +16,18 @@ export class UsersService {
   ) {}
 
   async create(dto: CreateUserDto): Promise<User> {
+    const existing = await this.findByEmail(dto.email);
+    if (existing) {
+      throw new ConflictException('Email already in use');
+    }
     const passwordHash = await bcrypt.hash(dto.password, 10);
     const user = this.usersRepo.create({
       email: dto.email,
       passwordHash,
-      role: dto.role ?? 'user',
+      firstName: dto.firstName,
+      lastName: dto.lastName,
+      birthDate: dto.birthDate,
+      role: dto.role ?? 'buyer',
       apiKey: uuidv4(),
     });
     return this.usersRepo.save(user);
@@ -30,6 +37,15 @@ export class UsersService {
     const user = await this.findById(id);
     if (dto.password) {
       user.passwordHash = await bcrypt.hash(dto.password, 10);
+    }
+    if (dto.firstName !== undefined) {
+      user.firstName = dto.firstName;
+    }
+    if (dto.lastName !== undefined) {
+      user.lastName = dto.lastName;
+    }
+    if (dto.birthDate !== undefined) {
+      user.birthDate = dto.birthDate;
     }
     if (dto.role) {
       user.role = dto.role;

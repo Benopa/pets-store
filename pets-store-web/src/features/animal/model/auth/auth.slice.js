@@ -1,5 +1,5 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { loginAuth, fetchMe } from './auth.thunk';
+import { loginAuth, registerAuth, fetchMe } from './auth.thunk';
 
 const initialState = {
   accessToken: localStorage.getItem('token'),
@@ -49,6 +49,20 @@ const authSlice = createSlice({
     builder.addCase(loginAuth.rejected, (state, action) => {
       state.loading = false;
       state.error = action.error.message;
+    });
+    builder.addCase(registerAuth.pending, (state) => {
+      state.loading = true;
+      state.error = null;
+    });
+    builder.addCase(registerAuth.fulfilled, (state, action) => {
+      state.accessToken = action.payload.accessToken;
+      state.apiKey = action.payload.apiKey;
+      state.role = action.payload.role;
+      state.loading = false;
+    });
+    builder.addCase(registerAuth.rejected, (state, action) => {
+      state.loading = false;
+      state.error = action.payload ?? action.error.message;
     });
     builder.addCase(fetchMe.pending, (state) => {
       state.loading = true;

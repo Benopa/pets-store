@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Header } from '../features';
-import { HomePage, LoginPage } from '../pages';
+import { HomePage, LoginPage, RegisterPage } from '../pages';
 import { useDispatch, useSelector } from 'react-redux';
 import { useEffect } from 'react';
 import { fetchAnimals, fetchCategories } from '../features/animal';
@@ -44,6 +44,14 @@ export const App = () => {
               // HOC
               <GuestRoute>
                 <LoginPage />
+              </GuestRoute>
+            }
+          />
+          <Route
+            path="/register"
+            element={
+              <GuestRoute>
+                <RegisterPage />
               </GuestRoute>
             }
           />

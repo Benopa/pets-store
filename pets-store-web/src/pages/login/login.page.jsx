@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Alert, Button, Card, Form, Input, Typography } from 'antd';
 import { MailOutlined, LockOutlined } from '@ant-design/icons';
@@ -64,6 +65,13 @@ export const LoginPage = () => {
             </Button>
           </Form.Item>
         </Form>
+
+        <div className="text-center mt-4">
+          <Text type="secondary">Нет аккаунта? </Text>
+          <Link to="/register" className="text-[#9850fd]">
+            Зарегистрироваться
+          </Link>
+        </div>
       </Card>
     </div>
   );

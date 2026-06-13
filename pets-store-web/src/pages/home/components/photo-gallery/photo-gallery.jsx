@@ -21,7 +21,7 @@ export const PhotoGallery = ({ animal }) => {
 
   if (photos.length === 0) {
     return (
-      <div className="gallery-stage rounded-xl flex items-center justify-center bg-stone-100 text-stone-300 text-4xl">
+      <div className="w-full h-72 p-2 rounded-xl flex items-center justify-center bg-stone-100 text-stone-300 text-4xl">
         ♥
       </div>
     );
@@ -39,12 +39,12 @@ export const PhotoGallery = ({ animal }) => {
           <Carousel ref={carouselRef} dots={false} afterChange={setActive} adaptiveHeight={false}>
             {photos.map((src, i) => (
               <div key={i}>
-                <div className="gallery-stage">
+                <div className="w-full h-72 p-2">
                   <Image
                     src={src}
                     alt={`${animal.name} ${i + 1}`}
-                    rootClassName="gallery-img-root"
-                    className="gallery-img"
+                    rootClassName="w-full! h-full! block"
+                    className="w-full! h-72! object-contain! cursor-zoom-in"
                   />
                 </div>
               </div>
@@ -55,14 +55,14 @@ export const PhotoGallery = ({ animal }) => {
             <>
               <button
                 onClick={() => go((active - 1 + photos.length) % photos.length)}
-                className="gallery-nav left-3"
+                className="absolute top-1/2 left-3 -translate-y-1/2 z-[2] grid place-items-center w-9 h-9 border-0 rounded-full bg-white/[0.92] text-stone-700 cursor-pointer shadow-[0_2px_6px_rgba(0,0,0,0.18)] transition hover:bg-white hover:scale-105"
                 aria-label="Назад"
               >
                 <LeftOutlined />
               </button>
               <button
                 onClick={() => go((active + 1) % photos.length)}
-                className="gallery-nav right-3"
+                className="absolute top-1/2 right-3 -translate-y-1/2 z-[2] grid place-items-center w-9 h-9 border-0 rounded-full bg-white/[0.92] text-stone-700 cursor-pointer shadow-[0_2px_6px_rgba(0,0,0,0.18)] transition hover:bg-white hover:scale-105"
                 aria-label="Вперёд"
               >
                 <RightOutlined />
@@ -81,7 +81,9 @@ export const PhotoGallery = ({ animal }) => {
             <button
               key={i}
               onClick={() => go(i)}
-              className={`thumb ${i === active ? 'thumb-active' : ''}`}
+              className={`flex-none w-14 h-14 p-0 border-2 rounded-lg overflow-hidden bg-stone-100 cursor-pointer transition ${
+                i === active ? 'opacity-100 border-[#9850fd]' : 'opacity-60 border-transparent'
+              }`}
             >
               <img src={src} alt="" draggable={false} className="h-full w-full object-cover" />
             </button>

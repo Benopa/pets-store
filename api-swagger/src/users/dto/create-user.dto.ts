@@ -1,6 +1,8 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
+import { IsDateString, IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 import { UserRole } from '../../entities/user.entity';
+
+const ROLES: UserRole[] = ['admin', 'moderator', 'seller', 'buyer'];
 
 export class CreateUserDto {
   @ApiProperty({ example: 'user@example.com' })
@@ -12,8 +14,24 @@ export class CreateUserDto {
   @MinLength(6)
   password!: string;
 
-  @ApiProperty({ example: 'user', required: false, enum: ['admin', 'user'] })
+  @ApiProperty({ example: 'Иван', required: false })
   @IsOptional()
-  @IsIn(['admin', 'user'])
+  @IsString()
+  firstName?: string;
+
+  @ApiProperty({ example: 'Иванов', required: false })
+  @IsOptional()
+  @IsString()
+  lastName?: string;
+
+  @ApiProperty({ example: '1990-05-17', required: false, description: 'Дата рождения (YYYY-MM-DD)' })
+  @IsOptional()
+  @IsDateString()
+  birthDate?: string;
+
+  // Админ может назначить любую роль, включая moderator и admin.
+  @ApiProperty({ example: 'buyer', required: false, enum: ROLES })
+  @IsOptional()
+  @IsIn(ROLES)
   role?: UserRole;
 }

@@ -2,7 +2,7 @@ import { Column, CreateDateColumn, Entity, OneToMany, PrimaryGeneratedColumn, Up
 import { Animal } from './animal.entity';
 import { Order } from './order.entity';
 
-export type UserRole = 'admin' | 'user';
+export type UserRole = 'admin' | 'moderator' | 'seller' | 'buyer';
 
 @Entity({ name: 'users' })
 export class User {
@@ -15,7 +15,16 @@ export class User {
   @Column()
   passwordHash!: string;
 
-  @Column({ type: 'varchar', default: 'user' })
+  @Column({ type: 'varchar', nullable: true })
+  firstName?: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  lastName?: string;
+
+  @Column({ type: 'date', nullable: true })
+  birthDate?: string;
+
+  @Column({ type: 'varchar', default: 'buyer' })
   role!: UserRole;
 
   @Column({ unique: true })
