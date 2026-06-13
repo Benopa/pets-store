@@ -28,7 +28,7 @@ export const App = () => {
   return (
     <div className="min-h-screen bg-stone-50 text-stone-800">
       <Header />
-      <main className="max-w-4xl mx-auto px-4 py-8">
+      <main className="max-w-5xl mx-auto px-4 py-8">
         <Routes>
           <Route
             path="/"

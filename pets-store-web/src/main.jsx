@@ -5,19 +5,17 @@ import { App } from '@/app';
 import './index.css';
 import { Provider } from 'react-redux';
 import { store } from '@/store';
-import { ConfigProvider } from 'antd';
+import { App as AntApp, ConfigProvider } from 'antd';
 
 ReactDOM.createRoot(document.getElementById('app')).render(
   <ConfigProvider
     theme={{
       components: {
-        Button: {
-          colorPrimary: '#9850fa',
-          borderRadius: 8,
+        Card: {
+          borderRadiusLG: 14,
         },
-        Tag: {
-          defaultColor: '#9850fd',
-          defaultBg: '#9850fd2d',
+        Button: {
+          borderRadius: 8,
         },
       },
       cssVars: true,
@@ -25,15 +23,18 @@ ReactDOM.createRoot(document.getElementById('app')).render(
         colorPrimary: '#9850fd',
         colorInfo: '#9850fd',
         colorError: '#b80306',
-        colorSuccess: '#6af624',
+        colorSuccess: '#52c41a',
+        borderRadius: 10,
+        fontFamily: 'system-ui, -apple-system, sans-serif',
       },
     }}
   >
-    <Provider store={store}>
-      <BrowserRouter>
-        <App />
-      </BrowserRouter>
-    </Provider>
-    ,
+    <AntApp>
+      <Provider store={store}>
+        <BrowserRouter>
+          <App />
+        </BrowserRouter>
+      </Provider>
+    </AntApp>
   </ConfigProvider>,
 );

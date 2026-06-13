@@ -1,5 +1,6 @@
 import { createSlice } from '@reduxjs/toolkit';
 import { fetchAnimals, fetchCategories } from './animal.thunks';
+import { logout } from '../auth';
 const initialState = {
   animals: [],
   total: 0,
@@ -10,9 +11,11 @@ const initialState = {
   categories: [],
   categoryId: null,
   search: '',
+  sort: 'name',
   sortBy: 'createdAt',
   order: 'DESC',
   currentAnimal: null,
+  cartCount: 0,
 };
 
 const animalSlice = createSlice({
@@ -28,8 +31,14 @@ const animalSlice = createSlice({
     setSearch: (state, action) => {
       state.search = action.payload;
     },
+    setSort: (state, action) => {
+      state.sort = action.payload;
+    },
     setCurrentAnimal: (state, action) => {
       state.currentAnimal = action.payload;
+    },
+    addToCart: (state) => {
+      state.cartCount += 1;
     },
     // openModal, closeModal=null
   },
@@ -56,8 +65,12 @@ const animalSlice = createSlice({
     builder.addCase(fetchCategories.rejected, (state, action) => {
       state.error = action.error.message;
     });
+    builder.addCase(logout, (state) => {
+      state.cartCount = 0;
+    });
   },
 });
 
-export const { setAnimals, setCategoryId, setSearch, setCurrentAnimal } = animalSlice.actions;
+export const { setAnimals, setCategoryId, setSearch, setSort, setCurrentAnimal, addToCart } =
+  animalSlice.actions;
 export default animalSlice.reducer;

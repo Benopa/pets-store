@@ -1,61 +1,51 @@
-import { useEffect, useRef, useState } from 'react';
-import { useDispatch } from 'react-redux';
-import { setCategoryId, setSearch } from '../../../../features/animal/model/animal/animal.slice';
-import { useSelector } from 'react-redux';
-
-import { Input, Select } from 'antd';
-
-const { Search } = Input;
+import { useDispatch, useSelector } from 'react-redux';
+import { Input, Select, Segmented } from 'antd';
+import { SearchOutlined, AppstoreOutlined } from '@ant-design/icons';
+import {
+  setCategoryId,
+  setSearch,
+  setSort,
+} from '../../../../features/animal/model/animal/animal.slice';
 
 export const Filter = () => {
   const dispatch = useDispatch();
-  // const { categoryId } = useSelector((state) => state.animal);
-  const categories = useSelector((state) => state.animal.categories);
+  const { categories, categoryId, search, sort } = useSelector((state) => state.animal);
   const optionsCategories = categories.map((category) => ({
     value: category.id,
     label: category.name,
   }));
-  const [isOpen, setIsOpen] = useState(false);
-  const containerRef = useRef(null);
-
-  const selectCategory = (id) => {
-    dispatch(setCategoryId(id));
-  };
-
-  useEffect(() => {
-    if (!isOpen) return;
-
-    const onPointerDown = (e) => {
-      const el = containerRef.current;
-      if (!el) return;
-      if (el.contains(e.target)) return;
-      setIsOpen(false);
-    };
-
-    window.addEventListener('mousedown', onPointerDown);
-    window.addEventListener('touchstart', onPointerDown, { passive: true });
-    return () => {
-      window.removeEventListener('mousedown', onPointerDown);
-      window.removeEventListener('touchstart', onPointerDown);
-    };
-  }, [isOpen]);
 
   return (
-    <div className="flex w-full max-w-2xl flex-col gap-3 sm:flex-row sm:items-center sm:gap-4">
-      <Search
-        placeholder="input search text"
-        allowClear
-        onSearch={(value) => dispatch(setSearch(value))}
-        onChange={(e) => dispatch(setSearch(e.target.value))}
-        className="w-full"
-      />
-
-      <Select
-        defaultValue="Выбери категорию"
-        className="w-[200px]"
-        onChange={selectCategory}
-        allowClear
-        options={optionsCategories}
+    <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+        <Input
+          allowClear
+          value={search}
+          prefix={<SearchOutlined className="text-stone-400" />}
+          placeholder="Поиск по имени"
+          onChange={(e) => dispatch(setSearch(e.target.value))}
+          className="sm:w-64"
+          size="large"
+        />
+        <Select
+          value={categoryId}
+          placeholder="Выбери категорию"
+          className="sm:w-52"
+          size="large"
+          onChange={(id) => dispatch(setCategoryId(id ?? null))}
+          allowClear
+          suffixIcon={<AppstoreOutlined />}
+          options={optionsCategories}
+        />
+      </div>
+      <Segmented
+        value={sort}
+        onChange={(value) => dispatch(setSort(value))}
+        options={[
+          { label: 'По имени', value: 'name' },
+          { label: 'Дешевле', value: 'priceAsc' },
+          { label: 'Младше', value: 'age' },
+        ]}
       />
     </div>
   );
