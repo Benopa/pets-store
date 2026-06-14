@@ -45,23 +45,30 @@ export const clearCart = () => (dispatch) => {
   dispatch(saveCart());
 };
 
-// Оформление заказа: создаём заказ (по API-ключу) → чистим корзину → обновляем историю.
+// Оформление заказа: создаём заказ из ВЫБРАННЫХ позиций (по API-ключу) →
+// убираем из корзины только заказанное (остальное остаётся) → обновляем историю.
 export const checkout = createAsyncThunk(
   'cart/checkout',
-  async (total, { getState, dispatch, rejectWithValue }) => {
+  async ({ selectedIds, total, comment } = {}, { getState, dispatch, rejectWithValue }) => {
     try {
       const apiKey = getState().auth?.apiKey;
-      const items = getState().cart.items.map((i) => ({
-        type: 'pet',
-        itemId: i.animalId,
-        quantity: i.quantity,
-      }));
+      const cartItems = getState().cart.items;
+      const ids = selectedIds?.length ? selectedIds : cartItems.map((i) => i.animalId);
+      const idSet = new Set(ids);
+      const items = cartItems
+        .filter((i) => idSet.has(i.animalId))
+        .map((i) => ({
+          type: 'pet',
+          itemId: i.animalId,
+          quantity: i.quantity,
+          ...(comment ? { note: comment } : {}),
+        }));
       const response = await axios.post(
         '/api/orders',
         { items, total },
         { headers: apiKey ? { 'x-api-key': apiKey } : {} },
       );
-      dispatch(clearItems());
+      ids.forEach((id) => dispatch(removeItem(id)));
       await dispatch(saveCart());
       dispatch(fetchOrders());
       return response.data;
