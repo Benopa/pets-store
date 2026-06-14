@@ -52,7 +52,7 @@ src/
 ```
 
 ### Модель данных
-- `User` — `email`, `passwordHash` (bcrypt), профиль (`firstName`, `lastName`, `birthDate`), `role`, уникальный `apiKey`.
+- `User` — `email`, `passwordHash` (bcrypt), профиль (`firstName`, `lastName`, `birthDate`, `address`, `paymentMethod`, `avatar`), `favorites` (jsonb — id избранных), `cart` (jsonb — `[{animalId, quantity}]`), `role`, уникальный `apiKey`.
   - **Роли**: `admin` | `moderator` | `seller` | `buyer` (по умолчанию `buyer`).
 - `Animal` — основная сущность: `name`, `species`, `price`, `ageMonths`, `status` (`available` по умолчанию), связи `category`/`owner`/`images` (все `eager`).
 - `AnimalImage` — изображения животного (`cascade`, `eager`), URL вида `/uploads/<uuid>.<ext>`.
@@ -72,6 +72,13 @@ src/
 - **Модератор и админ** — создаются только админом через `POST /users` (контроллер под `@Roles('admin')`). `CreateUserDto` допускает все 4 роли.
 - **Сид админа** — `UsersService.ensureAdminUser()` при старте поднимает/обновляет пользователя с ролью `admin` из `ADMIN_*`.
 
+### Личный кабинет (self-service, всё под JWT)
+- `GET /auth/me` — полный профиль; `PATCH /auth/me` (`UpdateProfileDto`) — имя/фамилия/дата рождения/адрес/способ оплаты + смена типа `role` **только в пределах buyer↔seller** (для admin/moderator → `403`).
+- `POST /auth/change-password` — смена пароля (сверяет текущий).
+- `POST /auth/me/avatar` — загрузка аватара (multipart, как у животных: `FileInterceptor` + `diskStorage`, URL `/uploads/<uuid>.<ext>`).
+- `PUT /auth/me/favorites` — избранное хранится per-user на сервере (переживает выход/вход); фронт шлёт полный список id.
+- `PUT /auth/me/cart` — корзина хранится per-user на сервере (тоже переживает выход/вход). Оформление заказа — `POST /orders` (по API-ключу) → запись попадает в историю покупок (`GET /orders`), после чего корзина очищается.
+
 ### Миграции (TypeORM)
 - Схема управляется **миграциями**. `synchronize` выключен через `.env` (**`DB_SYNCHRONIZE=false`**); при старте Nest прогоняет миграции (`migrationsRun`, см. `app.module.ts`). Поставить `DB_SYNCHRONIZE=true` вернёт авто-sync (для быстрых экспериментов в dev).
 - Команды (через `src/data-source.ts` — отдельный `DataSource` для CLI, читает `.env` через `dotenv`):
@@ -83,6 +90,9 @@ src/
 - Миграции (`src/migrations/`, порядок по timestamp в имени):
   1. **`InitialSchema`** — базовая схема: 5 таблиц (`users`, `categories`, `animals`, `animal_images`, `orders`) + FK. `users.role` ещё с дефолтом `user`.
   2. **`AddUserProfileFields`** — добавляет `firstName`/`lastName`/`birthDate`, меняет дефолт роли на `buyer` и переносит `user → buyer`. SQL идемпотентный (`IF NOT EXISTS`).
+  3. **`AddUserContactFields`** — добавляет `address`/`paymentMethod`/`avatar`.
+  4. **`AddUserFavorites`** — добавляет `favorites` (jsonb, дефолт `[]`).
+  5. **`AddUserCart`** — добавляет `cart` (jsonb, дефолт `[]`).
 - Существующая dev-БД уже переведена под контроль миграций (обе записаны в таблице `migrations`). Свежая БД с `DB_SYNCHRONIZE=false` соберётся миграциями с нуля.
 
 ### Особенности

@@ -1,12 +1,30 @@
 import { createSlice } from '@reduxjs/toolkit';
-import { loginAuth, registerAuth, fetchMe } from './auth.thunk';
+import {
+  loginAuth,
+  registerAuth,
+  fetchMe,
+  updateProfile,
+  uploadAvatar,
+  changePassword,
+} from './auth.thunk';
 
 const initialState = {
   accessToken: localStorage.getItem('token'),
   apiKey: null,
   role: null,
   userId: null,
+  email: null,
+  firstName: null,
+  lastName: null,
+  birthDate: null,
+  address: null,
+  paymentMethod: null,
+  avatar: null,
+  createdAt: null,
   loading: false,
+  saving: false,
+  uploadingAvatar: false,
+  changingPassword: false,
   error: null,
 };
 
@@ -31,6 +49,14 @@ const authSlice = createSlice({
       state.apiKey = null;
       state.role = null;
       state.userId = null;
+      state.email = null;
+      state.firstName = null;
+      state.lastName = null;
+      state.birthDate = null;
+      state.address = null;
+      state.paymentMethod = null;
+      state.avatar = null;
+      state.createdAt = null;
       state.error = null;
       localStorage.removeItem('token');
     },
@@ -69,13 +95,65 @@ const authSlice = createSlice({
       state.error = null;
     });
     builder.addCase(fetchMe.fulfilled, (state, action) => {
-      state.userId = action.payload.userId;
-      state.role = action.payload.role;
+      const p = action.payload;
+      state.userId = p.id;
+      state.email = p.email;
+      state.firstName = p.firstName;
+      state.lastName = p.lastName;
+      state.birthDate = p.birthDate;
+      state.address = p.address;
+      state.paymentMethod = p.paymentMethod;
+      state.avatar = p.avatar;
+      state.role = p.role;
+      state.apiKey = p.apiKey ?? state.apiKey;
+      state.createdAt = p.createdAt;
       state.loading = false;
     });
     builder.addCase(fetchMe.rejected, (state, action) => {
       state.loading = false;
       state.error = action.error.message;
+    });
+    builder.addCase(updateProfile.pending, (state) => {
+      state.saving = true;
+      state.error = null;
+    });
+    builder.addCase(updateProfile.fulfilled, (state, action) => {
+      const p = action.payload;
+      state.firstName = p.firstName;
+      state.lastName = p.lastName;
+      state.birthDate = p.birthDate;
+      state.address = p.address;
+      state.paymentMethod = p.paymentMethod;
+      state.email = p.email;
+      state.role = p.role;
+      state.saving = false;
+    });
+    builder.addCase(updateProfile.rejected, (state, action) => {
+      state.saving = false;
+      state.error = action.payload ?? action.error.message;
+    });
+    builder.addCase(uploadAvatar.pending, (state) => {
+      state.uploadingAvatar = true;
+      state.error = null;
+    });
+    builder.addCase(uploadAvatar.fulfilled, (state, action) => {
+      state.avatar = action.payload.avatar;
+      state.uploadingAvatar = false;
+    });
+    builder.addCase(uploadAvatar.rejected, (state, action) => {
+      state.uploadingAvatar = false;
+      state.error = action.payload ?? action.error.message;
+    });
+    builder.addCase(changePassword.pending, (state) => {
+      state.changingPassword = true;
+      state.error = null;
+    });
+    builder.addCase(changePassword.fulfilled, (state) => {
+      state.changingPassword = false;
+    });
+    builder.addCase(changePassword.rejected, (state, action) => {
+      state.changingPassword = false;
+      state.error = action.payload ?? action.error.message;
     });
   },
 });

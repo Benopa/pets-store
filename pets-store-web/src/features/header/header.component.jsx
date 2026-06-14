@@ -1,4 +1,4 @@
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Layout, Space, Badge, Button, Dropdown, Avatar } from 'antd';
 import { ShoppingCartOutlined, UserOutlined, LogoutOutlined } from '@ant-design/icons';
@@ -8,16 +8,20 @@ const { Header: AntHeader } = Layout;
 
 export const Header = () => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const accessToken = useSelector((state) => state.auth.accessToken);
-  const cartCount = useSelector((state) => state.animal.cartCount);
+  const cartCount = useSelector((state) =>
+    state.cart.items.reduce((sum, item) => sum + item.quantity, 0),
+  );
 
   const menu = {
     items: [
-      { key: 'profile', icon: <UserOutlined />, label: 'Профиль', disabled: true },
+      { key: 'profile', icon: <UserOutlined />, label: 'Личный кабинет' },
       { type: 'divider' },
       { key: 'logout', icon: <LogoutOutlined />, label: 'Выйти', danger: true },
     ],
     onClick: ({ key }) => {
+      if (key === 'profile') navigate('/account');
       if (key === 'logout') dispatch(logout());
     },
   };
@@ -35,7 +39,12 @@ export const Header = () => {
         {accessToken && (
           <Space size="middle">
             <Badge count={cartCount} size="small" color="#9850fd">
-              <Button shape="circle" icon={<ShoppingCartOutlined />} />
+              <Button
+                shape="circle"
+                icon={<ShoppingCartOutlined />}
+                onClick={() => navigate('/cart')}
+                aria-label="Корзина"
+              />
             </Badge>
             <Dropdown menu={menu} placement="bottomRight" trigger={['click']}>
               <Avatar className="!bg-[#9850fd] cursor-pointer" icon={<UserOutlined />} />

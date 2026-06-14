@@ -4,7 +4,7 @@ import { Repository } from 'typeorm';
 import * as bcrypt from 'bcrypt';
 import { v4 as uuidv4 } from 'uuid';
 
-import { User, UserRole } from '../entities/user.entity';
+import { CartItem, User, UserRole } from '../entities/user.entity';
 import { CreateUserDto } from './dto/create-user.dto';
 import { UpdateUserDto } from './dto/update-user.dto';
 
@@ -47,9 +47,30 @@ export class UsersService {
     if (dto.birthDate !== undefined) {
       user.birthDate = dto.birthDate;
     }
+    if (dto.address !== undefined) {
+      user.address = dto.address;
+    }
+    if (dto.paymentMethod !== undefined) {
+      user.paymentMethod = dto.paymentMethod;
+    }
+    if (dto.avatar !== undefined) {
+      user.avatar = dto.avatar;
+    }
     if (dto.role) {
       user.role = dto.role;
     }
+    return this.usersRepo.save(user);
+  }
+
+  async setFavorites(userId: string, favorites: string[]): Promise<User> {
+    const user = await this.findById(userId);
+    user.favorites = favorites;
+    return this.usersRepo.save(user);
+  }
+
+  async setCart(userId: string, cart: CartItem[]): Promise<User> {
+    const user = await this.findById(userId);
+    user.cart = cart;
     return this.usersRepo.save(user);
   }
 

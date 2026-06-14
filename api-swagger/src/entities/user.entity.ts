@@ -4,6 +4,13 @@ import { Order } from './order.entity';
 
 export type UserRole = 'admin' | 'moderator' | 'seller' | 'buyer';
 
+export type PaymentMethod = 'card' | 'sbp' | 'cash';
+
+export interface CartItem {
+  animalId: string;
+  quantity: number;
+}
+
 @Entity({ name: 'users' })
 export class User {
   @PrimaryGeneratedColumn('uuid')
@@ -23,6 +30,21 @@ export class User {
 
   @Column({ type: 'date', nullable: true })
   birthDate?: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  address?: string;
+
+  @Column({ type: 'varchar', nullable: true })
+  paymentMethod?: PaymentMethod;
+
+  @Column({ type: 'varchar', nullable: true })
+  avatar?: string;
+
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  favorites!: string[];
+
+  @Column({ type: 'jsonb', default: () => "'[]'" })
+  cart!: CartItem[];
 
   @Column({ type: 'varchar', default: 'buyer' })
   role!: UserRole;

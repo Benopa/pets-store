@@ -1,8 +1,7 @@
-import { useState } from 'react';
 import { App, Button, Card, Tag, Tooltip, Typography } from 'antd';
 import { HeartFilled, HeartOutlined, ShoppingCartOutlined } from '@ant-design/icons';
-import { useDispatch } from 'react-redux';
-import { setCurrentAnimal, addToCart } from '../../../../features';
+import { useDispatch, useSelector } from 'react-redux';
+import { setCurrentAnimal, addToCart, toggleFavorite } from '../../../../features';
 
 const { Text } = Typography;
 
@@ -17,7 +16,7 @@ export const CATEGORY_COLOR = {
 export const AnimalCard = ({ animal }) => {
   const dispatch = useDispatch();
   const { message } = App.useApp();
-  const [liked, setLiked] = useState(false);
+  const liked = useSelector((state) => state.favorites.ids.includes(animal.id));
 
   const imageUrl =
     animal.imageUrl ||
@@ -26,13 +25,13 @@ export const AnimalCard = ({ animal }) => {
 
   const handleAddToCart = (e) => {
     e.stopPropagation();
-    dispatch(addToCart());
+    dispatch(addToCart(animal.id));
     message.success(`«${animal.name}» добавлен в корзину`);
   };
 
   const handleToggleLike = (e) => {
     e.stopPropagation();
-    setLiked((value) => !value);
+    dispatch(toggleFavorite(animal.id));
   };
 
   return (

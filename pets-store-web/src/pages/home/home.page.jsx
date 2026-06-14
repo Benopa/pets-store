@@ -16,8 +16,8 @@ import {
   Divider,
   Descriptions,
 } from 'antd';
-import { ShoppingCartOutlined } from '@ant-design/icons';
-import { setCurrentAnimal, addToCart } from '../../features';
+import { ShoppingCartOutlined, HeartOutlined, HeartFilled } from '@ant-design/icons';
+import { setCurrentAnimal, addToCart, toggleFavorite } from '../../features';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -26,6 +26,7 @@ export const HomePage = () => {
 
   const dispatch = useDispatch();
   const { message } = App.useApp();
+  const favIds = useSelector((state) => state.favorites.ids);
 
   const sortedAnimals = useMemo(() => {
     const sorted = [...animals];
@@ -38,9 +39,14 @@ export const HomePage = () => {
   const closeModal = () => dispatch(setCurrentAnimal(null));
 
   const handleAddToCart = () => {
-    dispatch(addToCart());
+    dispatch(addToCart(currentAnimal.id));
     message.success(`«${currentAnimal.name}» добавлен в корзину`);
     closeModal();
+  };
+
+  const liked = currentAnimal ? favIds.includes(currentAnimal.id) : false;
+  const handleToggleFav = () => {
+    if (currentAnimal) dispatch(toggleFavorite(currentAnimal.id));
   };
 
   return (
@@ -96,6 +102,13 @@ export const HomePage = () => {
         width={780}
         title={null}
         footer={[
+          <Button
+            key="fav"
+            icon={liked ? <HeartFilled style={{ color: '#eb2f96' }} /> : <HeartOutlined />}
+            onClick={handleToggleFav}
+          >
+            {liked ? 'В избранном' : 'В избранное'}
+          </Button>,
           <Button key="close" onClick={closeModal}>
             Закрыть
           </Button>,
