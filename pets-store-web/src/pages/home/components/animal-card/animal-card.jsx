@@ -13,7 +13,14 @@ export const CATEGORY_COLOR = {
   Dogs: 'orange',
 };
 
-export const AnimalCard = ({ animal }) => {
+// Статус модерации → подпись + цвет тега
+export const MODERATION_STATUS = {
+  approved: { label: 'Одобрен', color: 'success' },
+  pending: { label: 'На проверке', color: 'warning' },
+  rejected: { label: 'Отклонён', color: 'error' },
+};
+
+export const AnimalCard = ({ animal, readOnly = false }) => {
   const dispatch = useDispatch();
   const { message } = App.useApp();
   const liked = useSelector((state) => state.favorites.ids.includes(animal.id));
@@ -55,18 +62,20 @@ export const AnimalCard = ({ animal }) => {
               ♥
             </div>
           )}
-          <Tooltip title={liked ? 'Убрать из избранного' : 'В избранное'}>
-            <button
-              onClick={handleToggleLike}
-              className="absolute top-2 right-2 grid place-items-center w-8 h-8 rounded-full bg-white/90 border-0 cursor-pointer shadow-sm backdrop-blur"
-            >
-              {liked ? (
-                <HeartFilled style={{ color: '#eb2f96' }} />
-              ) : (
-                <HeartOutlined style={{ color: '#8c8c8c' }} />
-              )}
-            </button>
-          </Tooltip>
+          {!readOnly && (
+            <Tooltip title={liked ? 'Убрать из избранного' : 'В избранное'}>
+              <button
+                onClick={handleToggleLike}
+                className="absolute top-2 right-2 grid place-items-center w-8 h-8 rounded-full bg-white/90 border-0 cursor-pointer shadow-sm backdrop-blur"
+              >
+                {liked ? (
+                  <HeartFilled style={{ color: '#eb2f96' }} />
+                ) : (
+                  <HeartOutlined style={{ color: '#8c8c8c' }} />
+                )}
+              </button>
+            </Tooltip>
+          )}
         </div>
       }
     >
@@ -94,9 +103,11 @@ export const AnimalCard = ({ animal }) => {
         <Text strong className="text-lg">
           {animal.price != null ? `${Number(animal.price)} ₽` : '—'}
         </Text>
-        <Button type="primary" icon={<ShoppingCartOutlined />} onClick={handleAddToCart}>
-          В корзину
-        </Button>
+        {!readOnly && (
+          <Button type="primary" icon={<ShoppingCartOutlined />} onClick={handleAddToCart}>
+            В корзину
+          </Button>
+        )}
       </div>
     </Card>
   );

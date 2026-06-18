@@ -21,25 +21,29 @@ import {
 } from 'antd';
 import {
   UserOutlined,
-  LogoutOutlined,
   LockOutlined,
   IdcardOutlined,
   HeartOutlined,
   HistoryOutlined,
   ShoppingOutlined,
+  ShopOutlined,
+  TeamOutlined,
   ArrowLeftOutlined,
 } from '@ant-design/icons';
-import { fetchMe, updateProfile, changePassword, fetchOrders, logout } from '../../features';
+import { fetchMe, updateProfile, changePassword, fetchOrders } from '../../features';
 import { ContactForm } from './components/contact-form';
 import { FavoritesGrid } from './components/favorites-grid';
 import { PurchaseHistory } from './components/purchase-history';
+import { ProductsManager } from './components/products-manager';
+import { ModeratorsManager } from './components/moderators-manager';
+import { StoresManager } from './components/stores-manager';
 
 const { Title, Text } = Typography;
 
 // Человекочитаемые роли + цвета тегов
 const ROLE_META = {
   admin: { label: 'Администратор', color: 'red' },
-  moderator: { label: 'Модератор', color: 'gold' },
+  moderator: { label: 'Модератор', color: 'cyan' },
   seller: { label: 'Продавец', color: 'gold' },
   buyer: { label: 'Покупатель', color: 'purple' },
 };
@@ -73,6 +77,11 @@ export const AccountPage = () => {
   const roleMeta = ROLE_META[role] ?? { label: role ?? '—', color: 'default' };
   const avatarSrc = avatar ? `http://localhost:3000${avatar}` : null;
   const canSwitchType = role === 'buyer' || role === 'seller';
+  const isAdmin = role === 'admin';
+  const isSeller = role === 'seller';
+  const isModerator = role === 'moderator';
+  const isStaff = isAdmin || isModerator; // персонал — не покупает и не продаёт
+  const canManage = isAdmin || isSeller;
 
   const purchasesCount = orders.length;
   const favCount = favIds.length;
@@ -227,33 +236,34 @@ export const AccountPage = () => {
                     />
                   </div>
                 )}
-                <Button danger icon={<LogoutOutlined />} onClick={() => dispatch(logout())}>
-                  Выйти
-                </Button>
               </div>
             </div>
 
-            <Divider className="!my-5" />
+            {!isStaff && (
+              <>
+                <Divider className="!my-5" />
 
-            <Row gutter={16}>
-              <Col span={8}>
-                <Statistic
-                  title="Покупок"
-                  value={purchasesCount}
-                  prefix={<ShoppingOutlined className="text-stone-400" />}
-                />
-              </Col>
-              <Col span={8}>
-                <Statistic
-                  title="В избранном"
-                  value={favCount}
-                  prefix={<HeartOutlined className="text-stone-400" />}
-                />
-              </Col>
-              <Col span={8}>
-                <Statistic title="Потрачено" value={spent} suffix="₽" />
-              </Col>
-            </Row>
+                <Row gutter={16}>
+                  <Col span={8}>
+                    <Statistic
+                      title={isSeller ? 'Продаж' : 'Покупок'}
+                      value={purchasesCount}
+                      prefix={<ShoppingOutlined className="text-stone-400" />}
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <Statistic
+                      title="В избранном"
+                      value={favCount}
+                      prefix={<HeartOutlined className="text-stone-400" />}
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <Statistic title="Потрачено" value={spent} suffix="₽" />
+                  </Col>
+                </Row>
+              </>
+            )}
           </>
         )}
       </Card>
@@ -279,7 +289,34 @@ export const AccountPage = () => {
               <ContactForm />
             ),
           },
-          {
+          isAdmin && {
+            key: 'moderators',
+            label: (
+              <span>
+                <TeamOutlined /> Модераторы
+              </span>
+            ),
+            children: <ModeratorsManager />,
+          },
+          canManage && {
+            key: 'products',
+            label: (
+              <span>
+                <ShopOutlined /> {isAdmin ? 'Управление товарами' : 'Мои товары'}
+              </span>
+            ),
+            children: <ProductsManager />,
+          },
+          isAdmin && {
+            key: 'stores',
+            label: (
+              <span>
+                <ShoppingOutlined /> Магазины
+              </span>
+            ),
+            children: <StoresManager />,
+          },
+          !isStaff && {
             key: 'favorites',
             label: (
               <span>
@@ -288,11 +325,11 @@ export const AccountPage = () => {
             ),
             children: <FavoritesGrid />,
           },
-          {
+          !isStaff && {
             key: 'history',
             label: (
               <span>
-                <HistoryOutlined /> История покупок
+                <HistoryOutlined /> {isSeller ? 'История продаж' : 'История покупок'}
               </span>
             ),
             children: <PurchaseHistory />,
@@ -306,7 +343,7 @@ export const AccountPage = () => {
             ),
             children: securityTab,
           },
-        ]}
+        ].filter(Boolean)}
       />
     </div>
   );

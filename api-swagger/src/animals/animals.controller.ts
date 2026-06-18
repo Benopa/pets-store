@@ -21,8 +21,11 @@ import { mkdirSync } from 'fs';
 import { AnimalsService } from './animals.service';
 import { CreateAnimalDto } from './dto/create-animal.dto';
 import { UpdateAnimalDto } from './dto/update-animal.dto';
+import { RejectAnimalDto } from './dto/reject-animal.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { RolesGuard } from '../common/guards/roles.guard';
+import { Roles } from '../common/decorators/roles.decorator';
 import { User } from '../entities/user.entity';
 
 const uploadDir = process.env.UPLOAD_DIR ?? 'uploads';
@@ -37,6 +40,7 @@ export class AnimalsController {
   @ApiQuery({ name: 'categoryId', required: false })
   @ApiQuery({ name: 'species', required: false })
   @ApiQuery({ name: 'status', required: false })
+  @ApiQuery({ name: 'moderationStatus', required: false, enum: ['pending', 'approved', 'rejected'] })
   @ApiQuery({ name: 'name', required: false })
   @ApiQuery({ name: 'minPrice', required: false })
   @ApiQuery({ name: 'maxPrice', required: false })
@@ -50,6 +54,7 @@ export class AnimalsController {
     @Query('categoryId') categoryId?: string,
     @Query('species') species?: string,
     @Query('status') status?: string,
+    @Query('moderationStatus') moderationStatus?: string,
     @Query('name') name?: string,
     @Query('minPrice') minPrice?: string,
     @Query('maxPrice') maxPrice?: string,
@@ -64,6 +69,7 @@ export class AnimalsController {
       categoryId,
       species,
       status,
+      moderationStatus,
       name,
       minPrice: minPrice ? Number(minPrice) : undefined,
       maxPrice: maxPrice ? Number(maxPrice) : undefined,
@@ -104,6 +110,31 @@ export class AnimalsController {
     return this.animalsService.update(id, dto, req.user.userId, req.user.role);
   }
 
+  // --- Модерация (только модератор/админ) ---
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'moderator')
+  @Patch(':id/approve')
+  approve(@Param('id') id: string) {
+    return this.animalsService.approve(id);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles('admin', 'moderator')
+  @Patch(':id/reject')
+  reject(@Param('id') id: string, @Body() dto: RejectAnimalDto) {
+    return this.animalsService.reject(id, dto.reason);
+  }
+
+  // Повторная отправка отклонённой карточки на проверку (владелец-продавец или админ).
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/resubmit')
+  resubmit(@Param('id') id: string, @Request() req: { user: { userId: string; role: string } }) {
+    return this.animalsService.resubmit(id, req.user.userId, req.user.role);
+  }
+
   @UseGuards(ApiKeyGuard)
   @ApiSecurity('apiKey')
   @Delete(':id')
@@ -142,5 +173,27 @@ export class AnimalsController {
   ) {
     const url = `/uploads/${file.filename}`;
     return this.animalsService.addImage(id, url, req.user.userId, req.user.role);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Delete(':id/images/:imageId')
+  removeImage(
+    @Param('id') id: string,
+    @Param('imageId') imageId: string,
+    @Request() req: { user: { userId: string; role: string } },
+  ) {
+    return this.animalsService.removeImage(id, imageId, req.user.userId, req.user.role);
+  }
+
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
+  @Patch(':id/images/:imageId/cover')
+  setCover(
+    @Param('id') id: string,
+    @Param('imageId') imageId: string,
+    @Request() req: { user: { userId: string; role: string } },
+  ) {
+    return this.animalsService.setCover(id, imageId, req.user.userId, req.user.role);
   }
 }

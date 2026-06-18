@@ -8,11 +8,13 @@ import { UsersModule } from './users/users.module';
 import { CategoriesModule } from './categories/categories.module';
 import { AnimalsModule } from './animals/animals.module';
 import { OrdersModule } from './orders/orders.module';
+import { ShopsModule } from './shops/shops.module';
 import { User } from './entities/user.entity';
 import { Category } from './entities/category.entity';
 import { Animal } from './entities/animal.entity';
 import { AnimalImage } from './entities/animal-image.entity';
 import { Order } from './entities/order.entity';
+import { Shop } from './entities/shop.entity';
 
 @Module({
   imports: [
@@ -32,7 +34,7 @@ import { Order } from './entities/order.entity';
           username: config.get<string>('DB_USERNAME', 'app'),
           password: config.get<string>('DB_PASSWORD', 'app'),
           database: config.get<string>('DB_NAME', 'petstore'),
-          entities: [User, Category, Animal, AnimalImage, Order],
+          entities: [User, Category, Animal, AnimalImage, Order, Shop],
           migrations: [join(__dirname, 'migrations', '*.{ts,js}')],
           synchronize,
           // Когда synchronize выключен, прогоняем миграции при старте.
@@ -45,6 +47,7 @@ import { Order } from './entities/order.entity';
     CategoriesModule,
     AnimalsModule,
     OrdersModule,
+    ShopsModule,
   ],
 })
 export class AppModule {}

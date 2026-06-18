@@ -47,6 +47,7 @@ export const ContactForm = () => {
   } = useSelector((state) => state.auth);
 
   const isSeller = role === 'seller';
+  const isStaff = role === 'admin' || role === 'moderator'; // у персонала нет доставки/оплаты
   const avatarSrc = avatar ? `http://localhost:3000${avatar}` : null;
   const initials =
     [firstName, lastName]
@@ -65,15 +66,17 @@ export const ContactForm = () => {
   }, [form, firstName, lastName, birthDate, address, paymentMethod]);
 
   const handleSave = async (values) => {
-    const result = await dispatch(
-      updateProfile({
-        firstName: values.firstName,
-        lastName: values.lastName,
-        birthDate: values.birthDate ? values.birthDate.format('YYYY-MM-DD') : undefined,
-        address: values.address ?? '',
-        paymentMethod: values.paymentMethod,
-      }),
-    );
+    const payload = {
+      firstName: values.firstName,
+      lastName: values.lastName,
+      birthDate: values.birthDate ? values.birthDate.format('YYYY-MM-DD') : undefined,
+    };
+    // Персоналу (админ/модератор) поля доставки/оплаты не показываем и не сохраняем.
+    if (!isStaff) {
+      payload.address = values.address ?? '';
+      payload.paymentMethod = values.paymentMethod;
+    }
+    const result = await dispatch(updateProfile(payload));
     if (updateProfile.fulfilled.match(result)) {
       message.success('Контактные данные сохранены');
     } else {
@@ -181,29 +184,33 @@ export const ContactForm = () => {
           />
         </Form.Item>
 
-        <Form.Item name="address" label={isSeller ? 'Адрес магазина' : 'Адрес доставки'}>
-          <Input
-            prefix={<EnvironmentOutlined className="text-stone-400" />}
-            size="large"
-            placeholder="Город, улица, дом"
-          />
-        </Form.Item>
+        {!isStaff && (
+          <>
+            <Form.Item name="address" label={isSeller ? 'Адрес магазина' : 'Адрес доставки'}>
+              <Input
+                prefix={<EnvironmentOutlined className="text-stone-400" />}
+                size="large"
+                placeholder="Город, улица, дом"
+              />
+            </Form.Item>
 
-        <Divider className="!my-4" />
+            <Divider className="!my-4" />
 
-        <Form.Item name="paymentMethod" label="Способ оплаты">
-          <Radio.Group>
-            <Radio.Button value="card">
-              <CreditCardOutlined /> Банковская карта
-            </Radio.Button>
-            <Radio.Button value="sbp">
-              <BankOutlined /> СБП
-            </Radio.Button>
-            <Radio.Button value="cash">
-              <WalletOutlined /> {isSeller ? 'Наличными' : 'При получении'}
-            </Radio.Button>
-          </Radio.Group>
-        </Form.Item>
+            <Form.Item name="paymentMethod" label="Способ оплаты">
+              <Radio.Group>
+                <Radio.Button value="card">
+                  <CreditCardOutlined /> Банковская карта
+                </Radio.Button>
+                <Radio.Button value="sbp">
+                  <BankOutlined /> СБП
+                </Radio.Button>
+                <Radio.Button value="cash">
+                  <WalletOutlined /> {isSeller ? 'Наличными' : 'При получении'}
+                </Radio.Button>
+              </Radio.Group>
+            </Form.Item>
+          </>
+        )}
 
         <Form.Item className="!mb-0 !mt-2">
           <Button type="primary" htmlType="submit" size="large" loading={saving}>

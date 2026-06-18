@@ -1,6 +1,6 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
 import { Header } from '../features';
-import { HomePage, LoginPage, RegisterPage, AccountPage, CartPage } from '../pages';
+import { HomePage, LoginPage, RegisterPage, AccountPage, CartPage, ModerationPage } from '../pages';
 import { useDispatch, useSelector } from 'react-redux';
 import { useEffect } from 'react';
 import { fetchAnimals, fetchCategories, fetchMe } from '../features/animal';
@@ -13,6 +13,15 @@ const PrivateRoute = ({ children }) => {
 const GuestRoute = ({ children }) => {
   const accessToken = useSelector((state) => state.auth.accessToken);
   return accessToken ? <Navigate to="/" replace /> : children;
+};
+
+// Доступ только для модератора/админа. Пока роль не загружена (fetchMe) — ждём, не редиректим.
+const StaffRoute = ({ children }) => {
+  const { accessToken, role } = useSelector((state) => state.auth);
+  if (!accessToken) return <Navigate to="/login" replace />;
+  if (!role) return null;
+  if (role !== 'moderator' && role !== 'admin') return <Navigate to="/" replace />;
+  return children;
 };
 
 export const App = () => {
@@ -57,6 +66,14 @@ export const App = () => {
               <PrivateRoute>
                 <CartPage />
               </PrivateRoute>
+            }
+          />
+          <Route
+            path="/moderation"
+            element={
+              <StaffRoute>
+                <ModerationPage />
+              </StaffRoute>
             }
           />
           <Route

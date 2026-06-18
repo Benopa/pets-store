@@ -31,6 +31,8 @@ export class AnimalsService {
     if (!owner) {
       throw new NotFoundException('User not found');
     }
+    // Карточки продавцов уходят на модерацию; админ/модератор публикуют сразу.
+    const moderationStatus = owner.role === 'seller' ? 'pending' : 'approved';
     const animal = this.animalRepo.create({
       name: dto.name,
       species: dto.species,
@@ -40,6 +42,7 @@ export class AnimalsService {
       price: dto.price,
       weightKg: dto.weightKg,
       status: dto.status ?? 'available',
+      moderationStatus,
       category,
       owner,
     });
@@ -50,6 +53,7 @@ export class AnimalsService {
     categoryId?: string;
     species?: string;
     status?: string;
+    moderationStatus?: string;
     name?: string;
     minPrice?: number;
     maxPrice?: number;
@@ -73,6 +77,11 @@ export class AnimalsService {
     }
     if (query.status) {
       qb.andWhere('animal.status = :status', { status: query.status });
+    }
+    if (query.moderationStatus) {
+      qb.andWhere('animal.moderationStatus = :moderationStatus', {
+        moderationStatus: query.moderationStatus,
+      });
     }
     if (query.name) {
       qb.andWhere('LOWER(animal.name) LIKE :name', { name: `%${query.name.toLowerCase()}%` });
@@ -98,6 +107,8 @@ export class AnimalsService {
     };
     const sortField = sortMap[query.sortBy ?? 'createdAt'] ?? 'animal.createdAt';
     qb.orderBy(sortField, query.order ?? 'DESC');
+    // Фото — по позиции (первая = обложка).
+    qb.addOrderBy('images.position', 'ASC');
 
     const page = Math.max(1, query.page ?? 1);
     const limit = Math.min(100, Math.max(1, query.limit ?? 20));
@@ -111,6 +122,9 @@ export class AnimalsService {
     const animal = await this.animalRepo.findOne({ where: { id } });
     if (!animal) {
       throw new NotFoundException('Animal not found');
+    }
+    if (animal.images) {
+      animal.images.sort((a, b) => a.position - b.position || a.id.localeCompare(b.id));
     }
     return animal;
   }
@@ -151,6 +165,38 @@ export class AnimalsService {
       }
       animal.category = category;
     }
+    // Продавец, исправляющий отклонённую карточку, автоматически отправляет её на повторную проверку.
+    if (role !== 'admin' && role !== 'moderator' && animal.moderationStatus === 'rejected') {
+      animal.moderationStatus = 'pending';
+      animal.rejectReason = null;
+    }
+    return this.animalRepo.save(animal);
+  }
+
+  // Одобрение карточки модератором/админом — публикуется в каталоге.
+  async approve(id: string) {
+    const animal = await this.findById(id);
+    animal.moderationStatus = 'approved';
+    animal.rejectReason = null;
+    return this.animalRepo.save(animal);
+  }
+
+  // Отклонение карточки с причиной — продавец увидит причину и сможет исправить товар.
+  async reject(id: string, reason?: string) {
+    const animal = await this.findById(id);
+    animal.moderationStatus = 'rejected';
+    animal.rejectReason = reason ?? null;
+    return this.animalRepo.save(animal);
+  }
+
+  // Повторная отправка на проверку (продавцом-владельцем или админом).
+  async resubmit(id: string, userId: string, role: string) {
+    const animal = await this.findById(id);
+    if (animal.owner.id !== userId && role !== 'admin') {
+      throw new ForbiddenException('Not allowed');
+    }
+    animal.moderationStatus = 'pending';
+    animal.rejectReason = null;
     return this.animalRepo.save(animal);
   }
 
@@ -177,8 +223,46 @@ export class AnimalsService {
     if (animal.owner.id !== userId && role !== 'admin') {
       throw new ForbiddenException('Not allowed');
     }
-    const image = this.imageRepo.create({ url, animal });
+    // Новое фото добавляем в конец (после текущей обложки).
+    const maxPos = animal.images?.length ? Math.max(...animal.images.map((i) => i.position)) : -1;
+    const image = this.imageRepo.create({ url, animal, position: maxPos + 1 });
     await this.imageRepo.save(image);
     return this.findById(id);
+  }
+
+  async removeImage(animalId: string, imageId: string, userId: string, role: string) {
+    const animal = await this.findById(animalId);
+    if (animal.owner.id !== userId && role !== 'admin') {
+      throw new ForbiddenException('Not allowed');
+    }
+    const target = animal.images?.find((img) => img.id === imageId);
+    if (!target) {
+      throw new NotFoundException('Image not found');
+    }
+    await this.imageRepo.delete(imageId);
+    // Переиндексируем оставшиеся, сохраняя порядок.
+    const rest = (animal.images ?? [])
+      .filter((img) => img.id !== imageId)
+      .sort((a, b) => a.position - b.position);
+    await Promise.all(rest.map((img, idx) => this.imageRepo.update(img.id, { position: idx })));
+    return this.findById(animalId);
+  }
+
+  async setCover(animalId: string, imageId: string, userId: string, role: string) {
+    const animal = await this.findById(animalId);
+    if (animal.owner.id !== userId && role !== 'admin') {
+      throw new ForbiddenException('Not allowed');
+    }
+    const images = (animal.images ?? []).slice().sort((a, b) => a.position - b.position);
+    if (!images.some((img) => img.id === imageId)) {
+      throw new NotFoundException('Image not found');
+    }
+    // Выбранное фото — на позицию 0, остальные сохраняют относительный порядок.
+    const reordered = [
+      ...images.filter((img) => img.id === imageId),
+      ...images.filter((img) => img.id !== imageId),
+    ];
+    await Promise.all(reordered.map((img, idx) => this.imageRepo.update(img.id, { position: idx })));
+    return this.findById(animalId);
   }
 }

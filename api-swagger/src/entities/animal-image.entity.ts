@@ -9,6 +9,10 @@ export class AnimalImage {
   @Column()
   url!: string;
 
+  // Порядок фото: 0 — обложка. Меняется при выборе обложки/удалении.
+  @Column({ type: 'int', default: 0 })
+  position!: number;
+
   @ManyToOne(() => Animal, (animal) => animal.images, { onDelete: 'CASCADE' })
   animal!: Animal;
 }

@@ -32,6 +32,15 @@ export class Animal {
   @Column({ default: 'available' })
   status!: string;
 
+  // Статус модерации: 'pending' (на проверке) | 'approved' (одобрен) | 'rejected' (отклонён).
+  // Товары продавцов создаются как 'pending'; товары админа — сразу 'approved'.
+  @Column({ default: 'approved' })
+  moderationStatus!: string;
+
+  // Причина отклонения — заполняется модератором, видна продавцу.
+  @Column({ type: 'varchar', nullable: true })
+  rejectReason?: string | null;
+
   @ManyToOne(() => Category, (category) => category.animals, { eager: true })
   category!: Category;
 

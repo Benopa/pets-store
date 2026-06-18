@@ -5,6 +5,8 @@ import {
   favoritesReducer,
   ordersReducer,
   cartReducer,
+  moderatorsReducer,
+  shopsReducer,
 } from '../features';
 
 export const store = configureStore({
@@ -14,5 +16,7 @@ export const store = configureStore({
     favorites: favoritesReducer,
     orders: ordersReducer,
     cart: cartReducer,
+    moderators: moderatorsReducer,
+    shops: shopsReducer,
   },
 });

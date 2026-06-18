@@ -27,14 +27,23 @@ export const HomePage = () => {
   const dispatch = useDispatch();
   const { message } = App.useApp();
   const favIds = useSelector((state) => state.favorites.ids);
+  const role = useSelector((state) => state.auth.role);
+  // Персонал (админ/модератор) не покупает — каталог в режиме просмотра (без «В корзину»/избранного).
+  const readOnly = role === 'admin' || role === 'moderator';
+
+  // В каталоге показываем только одобренные товары (старым карточкам статус не задан → считаем одобренными).
+  const visibleAnimals = useMemo(
+    () => animals.filter((a) => (a.moderationStatus ?? 'approved') === 'approved'),
+    [animals],
+  );
 
   const sortedAnimals = useMemo(() => {
-    const sorted = [...animals];
+    const sorted = [...visibleAnimals];
     if (sort === 'name') sorted.sort((a, b) => a.name.localeCompare(b.name));
     if (sort === 'priceAsc') sorted.sort((a, b) => a.price - b.price);
     if (sort === 'age') sorted.sort((a, b) => a.ageMonths - b.ageMonths);
     return sorted;
-  }, [animals, sort]);
+  }, [visibleAnimals, sort]);
 
   const closeModal = () => dispatch(setCurrentAnimal(null));
 
@@ -55,7 +64,7 @@ export const HomePage = () => {
         <Title level={2} className="!mb-0 !font-light">
           Животные
         </Title>
-        {!loading && <Text type="secondary">{animals.length} шт.</Text>}
+        {!loading && <Text type="secondary">{visibleAnimals.length} шт.</Text>}
       </div>
       <div className="mb-8">
         <Filter />
@@ -81,18 +90,13 @@ export const HomePage = () => {
           ))}
         </div>
       )}
-      {animals.length === 0 && !loading && !error && (
+      {visibleAnimals.length === 0 && !loading && !error && (
         <Empty description="Ничего не найдено" className="!my-20" />
       )}
-      {animals.length > 0 && (
+      {visibleAnimals.length > 0 && (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">
           {sortedAnimals.map((animal) => (
-            // onClick={dispatch c animal}
-            <AnimalCard
-              key={animal.id}
-              animal={animal}
-              // onClick={() => dispatch(setCurrentAnimal(animal))}
-            />
+            <AnimalCard key={animal.id} animal={animal} readOnly={readOnly} />
           ))}
         </div>
       )}
@@ -101,26 +105,34 @@ export const HomePage = () => {
         onCancel={closeModal}
         width={780}
         title={null}
-        footer={[
-          <Button
-            key="fav"
-            icon={liked ? <HeartFilled style={{ color: '#eb2f96' }} /> : <HeartOutlined />}
-            onClick={handleToggleFav}
-          >
-            {liked ? 'В избранном' : 'В избранное'}
-          </Button>,
-          <Button key="close" onClick={closeModal}>
-            Закрыть
-          </Button>,
-          <Button
-            key="buy"
-            type="primary"
-            icon={<ShoppingCartOutlined />}
-            onClick={handleAddToCart}
-          >
-            В корзину · {currentAnimal ? Number(currentAnimal.price) : 0} ₽
-          </Button>,
-        ]}
+        footer={
+          readOnly
+            ? [
+                <Button key="close" onClick={closeModal}>
+                  Закрыть
+                </Button>,
+              ]
+            : [
+                <Button
+                  key="fav"
+                  icon={liked ? <HeartFilled style={{ color: '#eb2f96' }} /> : <HeartOutlined />}
+                  onClick={handleToggleFav}
+                >
+                  {liked ? 'В избранном' : 'В избранное'}
+                </Button>,
+                <Button key="close" onClick={closeModal}>
+                  Закрыть
+                </Button>,
+                <Button
+                  key="buy"
+                  type="primary"
+                  icon={<ShoppingCartOutlined />}
+                  onClick={handleAddToCart}
+                >
+                  В корзину · {currentAnimal ? Number(currentAnimal.price) : 0} ₽
+                </Button>,
+              ]
+        }
       >
         {currentAnimal && (
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">

@@ -93,11 +93,13 @@ src/
   3. **`AddUserContactFields`** — добавляет `address`/`paymentMethod`/`avatar`.
   4. **`AddUserFavorites`** — добавляет `favorites` (jsonb, дефолт `[]`).
   5. **`AddUserCart`** — добавляет `cart` (jsonb, дефолт `[]`).
+  6. **`AddImagePosition`** — добавляет `position` (int) в `animal_images`: порядок фото, первая (0) — обложка; существующим фото проставляет позиции по `id`.
 - Существующая dev-БД уже переведена под контроль миграций (обе записаны в таблице `migrations`). Свежая БД с `DB_SYNCHRONIZE=false` соберётся миграциями с нуля.
 
 ### Особенности
 - `ValidationPipe` глобальный с `whitelist: true` и `transform: true` — DTO с `class-validator` обязательны, лишние поля отбрасываются.
 - Загруженные файлы раздаются статикой по `/uploads` (`express.static`). Загрузка через `FileInterceptor` + `diskStorage`, имя файла — `randomUUID()`.
+- **Фото товара** (всё под JWT, проверка владельца либо `role === 'admin'`): `POST /animals/:id/images` — добавить (в конец); `DELETE /animals/:id/images/:imageId` — удалить (с переиндексацией); `PATCH /animals/:id/images/:imageId/cover` — назначить обложкой (позиция 0). Карточки возвращают фото отсортированными по `position`.
 - Все query-параметры приходят строками — в `AnimalsController.findAll` они вручную приводятся к числам.
 
 ## Конвенции
