@@ -1,11 +1,7 @@
 import { useDispatch, useSelector } from 'react-redux';
 import { Input, Select, Segmented } from 'antd';
 import { SearchOutlined, AppstoreOutlined } from '@ant-design/icons';
-import {
-  setCategoryId,
-  setSearch,
-  setSort,
-} from '../../../../features/animal/model/animal/animal.slice';
+import { setCategoryId, setSearch, setSort } from '@/entities/animal';
 
 export const Filter = () => {
   const dispatch = useDispatch();

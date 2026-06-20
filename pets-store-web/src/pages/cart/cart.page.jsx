@@ -29,8 +29,10 @@ import {
   WalletOutlined,
   EnvironmentOutlined,
 } from '@ant-design/icons';
-import { CATEGORY_COLOR } from '../home/components/animal-card';
-import { setCartQty, removeFromCart, clearCart, checkout, updateProfile } from '../../features';
+import { CATEGORY_COLOR } from '@/entities/animal';
+import { setCartQty, removeFromCart, clearCart, checkout } from '@/entities/cart';
+import { updateProfile } from '@/entities/auth';
+import { API_ORIGIN } from '@/shared/config';
 
 const { Title, Text } = Typography;
 
@@ -40,7 +42,7 @@ const FREE_FROM = 500;
 const imageOf = (animal) =>
   animal.imageUrl ||
   animal.image ||
-  (animal.images?.[0]?.url ? `http://localhost:3000${animal.images[0].url}` : null);
+  (animal.images?.[0]?.url ? `${API_ORIGIN}${animal.images[0].url}` : null);
 
 const QtyStepper = ({ value, onChange }) => (
   <div className="inline-flex items-center overflow-hidden rounded-lg border border-stone-200">

@@ -1,6 +1,7 @@
-import { AnimalCard, CATEGORY_COLOR } from './components/animal-card';
 import { Filter } from './components/filter/filter';
-import { PhotoGallery } from './components/photo-gallery';
+import { AnimalCard, CATEGORY_COLOR, PhotoGallery, setCurrentAnimal } from '@/entities/animal';
+import { addToCart } from '@/entities/cart';
+import { toggleFavorite } from '@/entities/favorites';
 import { useMemo } from 'react';
 import { useSelector, useDispatch } from 'react-redux';
 import {
@@ -17,7 +18,6 @@ import {
   Descriptions,
 } from 'antd';
 import { ShoppingCartOutlined, HeartOutlined, HeartFilled } from '@ant-design/icons';
-import { setCurrentAnimal, addToCart, toggleFavorite } from '../../features';
 
 const { Title, Text, Paragraph } = Typography;
 

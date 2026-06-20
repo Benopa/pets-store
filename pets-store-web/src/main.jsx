@@ -2,9 +2,9 @@ import React from 'react';
 import ReactDOM from 'react-dom/client';
 import { BrowserRouter } from 'react-router-dom';
 import { App } from '@/app';
-import './index.css';
+import '@/app/styles/index.css';
 import { Provider } from 'react-redux';
-import { store } from '@/store';
+import { store } from '@/app/store';
 import { App as AntApp, ConfigProvider } from 'antd';
 
 ReactDOM.createRoot(document.getElementById('app')).render(

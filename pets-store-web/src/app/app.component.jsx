@@ -1,9 +1,10 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { Header } from '../features';
-import { HomePage, LoginPage, RegisterPage, AccountPage, CartPage, ModerationPage } from '../pages';
 import { useDispatch, useSelector } from 'react-redux';
 import { useEffect } from 'react';
-import { fetchAnimals, fetchCategories, fetchMe } from '../features/animal';
+import { Header } from '@/widgets/header';
+import { HomePage, LoginPage, RegisterPage, AccountPage, CartPage, ModerationPage } from '@/pages';
+import { fetchAnimals, fetchCategories } from '@/entities/animal';
+import { fetchMe } from '@/entities/auth';
 
 const PrivateRoute = ({ children }) => {
   const accessToken = useSelector((state) => state.auth.accessToken);

@@ -8,7 +8,8 @@ import {
   uploadAnimalImage,
   deleteAnimalImage,
   setAnimalCover,
-} from '../../../../features';
+} from '@/entities/animal';
+import { API_ORIGIN } from '@/shared/config';
 
 // Один элемент сетки фото: обложка-бейдж + действия (обложка/удалить) по ховеру.
 const PhotoTile = ({ src, isCover, onCover, onDelete, disabled }) => (
@@ -150,7 +151,7 @@ const ProductEditModalInner = ({ animal, onClose }) => {
   const tiles = isEdit
     ? existing.map((img, i) => ({
         key: img.id,
-        src: `http://localhost:3000${img.url}`,
+        src: `${API_ORIGIN}${img.url}`,
         isCover: i === 0,
         onCover: i === 0 ? null : () => coverServer(img.id),
         onDelete: () => removeServer(img.id),

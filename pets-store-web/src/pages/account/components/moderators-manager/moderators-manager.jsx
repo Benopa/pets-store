@@ -21,7 +21,7 @@ import {
   DeleteOutlined,
   SafetyOutlined,
 } from '@ant-design/icons';
-import { fetchModerators, createModerator, deleteModerator } from '../../../../features';
+import { fetchModerators, createModerator, deleteModerator } from '@/entities/moderator';
 
 const { Title, Text } = Typography;
 

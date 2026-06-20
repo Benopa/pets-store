@@ -23,16 +23,22 @@ import {
   CloseCircleOutlined,
   ArrowLeftOutlined,
 } from '@ant-design/icons';
-import { CATEGORY_COLOR, MODERATION_STATUS } from '../home/components/animal-card';
-import { PhotoGallery } from '../home/components/photo-gallery';
-import { fetchAnimals, approveAnimal, rejectAnimal } from '../../features';
+import {
+  CATEGORY_COLOR,
+  MODERATION_STATUS,
+  PhotoGallery,
+  fetchAnimals,
+  approveAnimal,
+  rejectAnimal,
+} from '@/entities/animal';
+import { API_ORIGIN } from '@/shared/config';
 
 const { Title, Text, Paragraph } = Typography;
 
 const imageOf = (animal) =>
   animal.imageUrl ||
   animal.image ||
-  (animal.images?.[0]?.url ? `http://localhost:3000${animal.images[0].url}` : null);
+  (animal.images?.[0]?.url ? `${API_ORIGIN}${animal.images[0].url}` : null);
 
 const ownerLabel = (owner) =>
   owner?.email || [owner?.firstName, owner?.lastName].filter(Boolean).join(' ') || owner?.id || '—';

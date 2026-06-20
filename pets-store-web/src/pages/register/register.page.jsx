@@ -2,7 +2,7 @@ import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Alert, Button, Card, DatePicker, Form, Input, Segmented, Typography } from 'antd';
 import { MailOutlined, LockOutlined, UserOutlined, CalendarOutlined } from '@ant-design/icons';
-import { registerAuth } from '../../features';
+import { registerAuth } from '@/entities/auth';
 
 const { Title, Text } = Typography;
 
