@@ -24,7 +24,8 @@ import {
   WalletOutlined,
 } from '@ant-design/icons';
 import dayjs from 'dayjs';
-import { updateProfile, uploadAvatar } from '../../../../features';
+import { updateProfile, uploadAvatar } from '@/entities/auth';
+import { API_ORIGIN } from '@/shared/config';
 
 const { Text } = Typography;
 
@@ -48,7 +49,7 @@ export const ContactForm = () => {
 
   const isSeller = role === 'seller';
   const isStaff = role === 'admin' || role === 'moderator'; // у персонала нет доставки/оплаты
-  const avatarSrc = avatar ? `http://localhost:3000${avatar}` : null;
+  const avatarSrc = avatar ? `${API_ORIGIN}${avatar}` : null;
   const initials =
     [firstName, lastName]
       .filter(Boolean)

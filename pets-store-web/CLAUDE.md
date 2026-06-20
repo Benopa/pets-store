@@ -28,30 +28,40 @@ npm run format:check   # проверка форматирования
 
 ## Архитектура
 
-Feature-ориентированная структура, в каждой папке есть `index.js` (barrel-реэкспорт). Алиас **`@` → `src`** (`vite.config.js`).
+Структура по **Feature-Sliced Design (FSD)** — слои `app / pages / widgets / entities / shared`.
+В каждом слайсе есть `index.js` (публичный API). Алиас **`@` → `src`** (`vite.config.js`); импорты
+между слоями — только через public API: `@/entities/<x>`, `@/widgets/<x>`, `@/shared/<x>`, `@/pages`,
+`@/app/store`. Внутри слайса — относительные пути.
 
 ```
 src/
-  main.jsx             # точка входа: Provider (redux), BrowserRouter, antd ConfigProvider (тема)
-  app/app.component.jsx# роуты + HOC PrivateRoute/GuestRoute, начальная загрузка данных
-  store/index.js       # configureStore: { animal, auth, favorites, orders, cart }
-  features/
-    header/            # шапка (badge корзины из state.cart, переход на /cart и /account)
-    animal/model/      # redux-логика (все слайсы под animal/model, реэкспорт через барели):
-      animal/          #   animal.slice.js, animal.thunks.js (fetchAnimals, fetchCategories)
-      auth/            #   auth.slice.js, auth.thunk.js (login/register/fetchMe/updateProfile/changePassword/uploadAvatar)
-      favorites/       #   favorites.slice + thunk (toggleFavorite → PUT /auth/me/favorites)
-      orders/          #   orders.slice + thunk (fetchOrders → GET /orders по x-api-key)
-      cart/            #   cart.slice + thunk (addToCart/setCartQty/removeFromCart/clearCart/checkout → PUT /auth/me/cart, POST /orders)
-  pages/
-    home/              # home.page.jsx + components/ (animal-card, filter, photo-gallery)
-    login/ register/   # вход / регистрация (покупатель/продавец)
-    account/           # личный кабинет: components/ (contact-form, favorites-grid, purchase-history)
-    cart/              # cart.page.jsx — корзина + «Итог заказа» + оформление
+  main.jsx                      # точка входа: ConfigProvider (antd) → Provider (redux) → BrowserRouter
+  app/                          # слой app: композиция приложения
+    app.component.jsx           #   роуты + HOC PrivateRoute/GuestRoute/StaffRoute, начальная загрузка
+    store.js                    #   configureStore: { animal, auth, favorites, orders, cart, moderators, shops }
+    styles/index.css            #   глобальные стили (Tailwind)
+  pages/                        # страницы (композиция entities/widgets)
+    home/      # home.page.jsx + components/filter
+    account/   # account.page.jsx + components/: contact-form, favorites-grid, purchase-history,
+               #   products-manager, product-edit-modal, moderators-manager, stores-manager
+    cart/ login/ register/ moderation/
+  widgets/
+    header/ui/header.jsx        # шапка (корзина из state.cart, меню «Модерация» для персонала)
+  entities/                     # бизнес-сущности: model (slice+thunks) [+ ui]
+    animal/    model/ + ui/ (animal-card, photo-gallery)   # fetchAnimals, approve/reject, CATEGORY_COLOR…
+    auth/      model/   # login/register/fetchMe/updateProfile/changePassword/uploadAvatar, logout
+    cart/      model/   # addToCart/setCartQty/removeFromCart/clearCart/checkout → PUT /auth/me/cart, POST /orders
+    favorites/ model/   # toggleFavorite → PUT /auth/me/favorites
+    order/     model/   # fetchOrders → GET /orders (x-api-key)
+    moderator/ model/   # CRUD модераторов (GET/POST/DELETE /users)
+    shop/      model/   # CRUD справочника магазинов (/shops)
+  shared/                       # переиспользуемое, не привязанное к домену
+    api/    # axios + bearer()/errMessage()/authToken()
+    config/ # API_ORIGIN = 'http://localhost:3000' (база для картинок/аватаров)
 ```
 
 ### Состояние (Redux Toolkit)
-- Слайсы: `animal`, `auth`, `favorites`, `orders`, `cart`. Асинхронные операции — `createAsyncThunk` + `axios`.
+- Слайсы (`entities/*/model`): `animal`, `auth`, `favorites`, `orders`, `cart`, `moderators`, `shops`. Асинхронные операции — `createAsyncThunk` + `axios` (общий `bearer/errMessage` из `@/shared/api`). Ключи стора неизменны.
 - **Профиль/избранное/корзина** грузятся с бэкенда через `fetchMe` (диспатчится в `app.component` при наличии токена) и сохраняются на бэкенде — переживают выход/вход.
 - `cart`: `[{animalId, quantity}]`; операции оптимистичны и сразу персистятся (`saveCart`). `checkout` → `POST /orders` → чистит корзину → `fetchOrders` (история).
 - `auth`: `accessToken`, профиль, `apiKey` (нужен для заказов).
@@ -63,7 +73,7 @@ src/
 
 ## Стилизация — важно
 
-- **Tailwind CSS v4** (`@import 'tailwindcss';` в `src/index.css`, плагин `@tailwindcss/postcss`). Конфиг — `tailwind.config.js`.
+- **Tailwind CSS v4** (`@import 'tailwindcss';` в `src/app/styles/index.css`, плагин `@tailwindcss/postcss`). Конфиг — `tailwind.config.js`.
 - В v4 модификатор `!important` — **суффиксом**: `w-full!`, `h-72!` (НЕ префиксом `!w-full` — это синтаксис v3).
 - Стили задаются **Tailwind-утилитами прямо в JSX**. Проект уходит от `styled-components` и кастомных CSS-классов в пользу Tailwind — при правках приводи стили к Tailwind, не вводи новые `.styled.js`/именованные CSS-классы.
 - Компоненты комбинируют **Ant Design + Tailwind** (Tailwind для лейаута/мелких правок поверх antd). Для переопределения стилей antd часто нужен `!` (например `!mb-0`, `w-full!`).
@@ -71,6 +81,6 @@ src/
 
 ## Конвенции
 - Компоненты — `.jsx`, файлы slice/thunk/barrel — `.js`. Имена файлов в **kebab-case** (`animal-card.jsx`), экспорты — **именованные** (без `export default`).
-- Импорты между фичами — через barrel'ы (`from '../features'`, `from '@/store'`), а не по глубоким путям.
+- Импорты между слоями FSD — через публичные API слайсов: `@/entities/<x>`, `@/widgets/<x>`, `@/shared/<x>`, `@/pages`, `@/app/store` (не по глубоким путям). Внутри слайса — относительные.
 - ESLint (flat-config `eslint.config.js`) + Prettier (`prettier.config.js`). Перед коммитом гонять `npm run lint` / `npm run format`.
 - Тексты UI — на русском.

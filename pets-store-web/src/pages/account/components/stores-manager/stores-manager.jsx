@@ -9,7 +9,7 @@ import {
   ShopOutlined,
   EnvironmentOutlined,
 } from '@ant-design/icons';
-import { fetchShops, createShop, updateShop, deleteShop } from '../../../../features';
+import { fetchShops, createShop, updateShop, deleteShop } from '@/entities/shop';
 
 const { Text } = Typography;
 

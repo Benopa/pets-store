@@ -30,7 +30,9 @@ import {
   TeamOutlined,
   ArrowLeftOutlined,
 } from '@ant-design/icons';
-import { fetchMe, updateProfile, changePassword, fetchOrders } from '../../features';
+import { fetchMe, updateProfile, changePassword } from '@/entities/auth';
+import { fetchOrders } from '@/entities/order';
+import { API_ORIGIN } from '@/shared/config';
 import { ContactForm } from './components/contact-form';
 import { FavoritesGrid } from './components/favorites-grid';
 import { PurchaseHistory } from './components/purchase-history';
@@ -75,7 +77,7 @@ export const AccountPage = () => {
       .map((s) => s[0]?.toUpperCase())
       .join('') || null;
   const roleMeta = ROLE_META[role] ?? { label: role ?? '—', color: 'default' };
-  const avatarSrc = avatar ? `http://localhost:3000${avatar}` : null;
+  const avatarSrc = avatar ? `${API_ORIGIN}${avatar}` : null;
   const canSwitchType = role === 'buyer' || role === 'seller';
   const isAdmin = role === 'admin';
   const isSeller = role === 'seller';

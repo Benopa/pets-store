@@ -1,6 +1,6 @@
 import { useSelector } from 'react-redux';
 import { Empty } from 'antd';
-import { AnimalCard } from '../../../home/components/animal-card';
+import { AnimalCard } from '@/entities/animal';
 
 // Избранные товары из каталога (фильтруем по id из favorites-стора).
 export const FavoritesGrid = () => {
