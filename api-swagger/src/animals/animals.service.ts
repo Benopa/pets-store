@@ -165,8 +165,9 @@ export class AnimalsService {
       }
       animal.category = category;
     }
-    // Продавец, исправляющий отклонённую карточку, автоматически отправляет её на повторную проверку.
-    if (role !== 'admin' && role !== 'moderator' && animal.moderationStatus === 'rejected') {
+    // Любое редактирование карточки продавцом возвращает её на модерацию;
+    // админ и модератор сохраняют изменения без повторной проверки.
+    if (role !== 'admin' && role !== 'moderator') {
       animal.moderationStatus = 'pending';
       animal.rejectReason = null;
     }

@@ -141,7 +141,12 @@ const ProductEditModalInner = ({ animal, onClose }) => {
     setSaving(false);
     if ((isEdit ? updateAnimal : createAnimal).fulfilled.match(result)) {
       previews.forEach((u) => URL.revokeObjectURL(u));
-      message.success(isEdit ? 'Карточка обновлена' : 'Товар добавлен');
+      let text;
+      if (!isEdit) text = 'Товар добавлен';
+      else if (result.payload?.moderationStatus === 'pending')
+        text = 'Карточка обновлена и отправлена на модерацию';
+      else text = 'Карточка обновлена';
+      message.success(text);
       onClose();
     } else {
       message.error(result.payload || 'Не удалось сохранить товар');
