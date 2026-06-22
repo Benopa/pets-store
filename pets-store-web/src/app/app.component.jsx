@@ -5,6 +5,7 @@ import { Header } from '@/widgets/header';
 import { HomePage, LoginPage, RegisterPage, AccountPage, CartPage, ModerationPage } from '@/pages';
 import { fetchAnimals, fetchCategories } from '@/entities/animal';
 import { fetchMe } from '@/entities/auth';
+import { fetchNotifications } from '@/entities/notification';
 
 const PrivateRoute = ({ children }) => {
   const accessToken = useSelector((state) => state.auth.accessToken);
@@ -38,6 +39,13 @@ export const App = () => {
   // Профиль + избранное (с бэкенда) при входе/перезагрузке
   useEffect(() => {
     if (accessToken) dispatch(fetchMe());
+  }, [dispatch, accessToken]);
+  // Уведомления: подтягиваем сразу и опрашиваем каждые 30 сек, пока пользователь залогинен.
+  useEffect(() => {
+    if (!accessToken) return undefined;
+    dispatch(fetchNotifications());
+    const intervalId = setInterval(() => dispatch(fetchNotifications()), 30000);
+    return () => clearInterval(intervalId);
   }, [dispatch, accessToken]);
 
   return (

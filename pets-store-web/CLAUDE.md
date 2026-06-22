@@ -38,7 +38,7 @@ src/
   main.jsx                      # точка входа: ConfigProvider (antd) → Provider (redux) → BrowserRouter
   app/                          # слой app: композиция приложения
     app.component.jsx           #   роуты + HOC PrivateRoute/GuestRoute/StaffRoute, начальная загрузка
-    store.js                    #   configureStore: { animal, auth, favorites, orders, cart, moderators, shops }
+    store.js                    #   configureStore: { animal, auth, favorites, orders, cart, moderators, shops, notifications }
     styles/index.css            #   глобальные стили (Tailwind)
   pages/                        # страницы (композиция entities/widgets)
     home/      # home.page.jsx + components/filter
@@ -53,6 +53,7 @@ src/
     cart/      model/   # addToCart/setCartQty/removeFromCart/clearCart/checkout → PUT /auth/me/cart, POST /orders
     favorites/ model/   # toggleFavorite → PUT /auth/me/favorites
     order/     model/   # fetchOrders → GET /orders (x-api-key)
+    notification/ model/ # лента уведомлений (JWT): fetchNotifications + mark(All)Read; «колокольчик» в header, polling 30с в app.component
     moderator/ model/   # CRUD модераторов (GET/POST/DELETE /users)
     shop/      model/   # CRUD справочника магазинов (/shops)
   shared/                       # переиспользуемое, не привязанное к домену

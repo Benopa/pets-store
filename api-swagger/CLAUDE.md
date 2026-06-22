@@ -44,8 +44,9 @@ src/
   users/               # CRUD пользователей, findByApiKey, ensureAdminUser
   categories/          # категории животных
   animals/             # животные + загрузка изображений (multipart)
-  orders/              # заказы (целиком под API-ключом)
-  entities/            # ВСЕ TypeORM-сущности собраны здесь (User, Category, Animal, AnimalImage, Order)
+  orders/              # заказы (целиком под API-ключом); при создании уведомляет продавцов купленных питомцев
+  notifications/       # уведомления пользователю (GET лента/счётчик, PATCH прочтения); сервис экспортируется
+  entities/            # ВСЕ TypeORM-сущности собраны здесь (User, Category, Animal, AnimalImage, Order, Shop, Notification)
   common/
     guards/            # jwt-auth.guard, api-key.guard, roles.guard
     decorators/        # @Roles(...)

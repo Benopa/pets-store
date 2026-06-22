@@ -8,6 +8,7 @@ import { Category } from '../entities/category.entity';
 import { User } from '../entities/user.entity';
 import { CreateAnimalDto } from './dto/create-animal.dto';
 import { UpdateAnimalDto } from './dto/update-animal.dto';
+import { NotificationsService } from '../notifications/notifications.service';
 
 @Injectable()
 export class AnimalsService {
@@ -20,6 +21,7 @@ export class AnimalsService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(AnimalImage)
     private readonly imageRepo: Repository<AnimalImage>,
+    private readonly notificationsService: NotificationsService,
   ) {}
 
   async create(dto: CreateAnimalDto, userId: string) {
@@ -179,7 +181,15 @@ export class AnimalsService {
     const animal = await this.findById(id);
     animal.moderationStatus = 'approved';
     animal.rejectReason = null;
-    return this.animalRepo.save(animal);
+    const saved = await this.animalRepo.save(animal);
+    // Уведомляем владельца: карточка прошла модерацию.
+    await this.notificationsService.create(animal.owner.id, {
+      type: 'animal_approved',
+      title: 'Объявление одобрено',
+      body: `«${animal.name}» опубликовано в каталоге.`,
+      animalId: animal.id,
+    });
+    return saved;
   }
 
   // Отклонение карточки с причиной — продавец увидит причину и сможет исправить товар.
@@ -187,7 +197,15 @@ export class AnimalsService {
     const animal = await this.findById(id);
     animal.moderationStatus = 'rejected';
     animal.rejectReason = reason ?? null;
-    return this.animalRepo.save(animal);
+    const saved = await this.animalRepo.save(animal);
+    // Уведомляем владельца об отклонении (с причиной, если она указана).
+    await this.notificationsService.create(animal.owner.id, {
+      type: 'animal_rejected',
+      title: 'Объявление отклонено',
+      body: reason ? `«${animal.name}»: ${reason}` : `«${animal.name}» отклонено модератором.`,
+      animalId: animal.id,
+    });
+    return saved;
   }
 
   // Повторная отправка на проверку (продавцом-владельцем или админом).

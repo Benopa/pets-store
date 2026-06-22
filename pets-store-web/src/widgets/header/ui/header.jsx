@@ -6,8 +6,14 @@ import {
   UserOutlined,
   LogoutOutlined,
   AuditOutlined,
+  BellOutlined,
 } from '@ant-design/icons';
 import { logout } from '@/entities/auth';
+import {
+  selectUnreadCount,
+  markNotificationRead,
+  markAllNotificationsRead,
+} from '@/entities/notification';
 
 const { Header: AntHeader } = Layout;
 
@@ -19,8 +25,50 @@ export const Header = () => {
   const cartCount = useSelector((state) =>
     state.cart.items.reduce((sum, item) => sum + item.quantity, 0),
   );
+  const notifications = useSelector((state) => state.notifications.items);
+  const unreadCount = useSelector(selectUnreadCount);
 
   const isStaff = role === 'moderator' || role === 'admin';
+
+  // Лента уведомлений в выпадающем меню «колокольчика».
+  const notifMenu = {
+    items: [
+      ...(unreadCount
+        ? [
+            { key: 'read-all', label: <span className="text-[#9850fd]">Прочитать все</span> },
+            { type: 'divider' },
+          ]
+        : []),
+      ...(notifications.length
+        ? notifications.map((n) => ({
+            key: n.id,
+            label: (
+              <div className={`max-w-xs whitespace-normal py-1 ${n.isRead ? 'opacity-50' : ''}`}>
+                <div className="font-medium text-stone-800">{n.title}</div>
+                {n.body && <div className="text-xs text-stone-500">{n.body}</div>}
+              </div>
+            ),
+          }))
+        : [
+            {
+              key: 'empty',
+              disabled: true,
+              label: <span className="text-stone-400">Нет уведомлений</span>,
+            },
+          ]),
+    ],
+    onClick: ({ key }) => {
+      if (key === 'read-all') {
+        dispatch(markAllNotificationsRead());
+        return;
+      }
+      const notification = notifications.find((n) => n.id === key);
+      if (!notification) return;
+      if (!notification.isRead) dispatch(markNotificationRead(notification.id));
+      // Товарные уведомления ведут в личный кабинет, где продавец управляет карточками.
+      if (notification.animalId) navigate('/account');
+    },
+  };
 
   const menu = {
     items: [
@@ -48,6 +96,11 @@ export const Header = () => {
 
         {accessToken && (
           <Space size="middle">
+            <Dropdown menu={notifMenu} placement="bottomRight" trigger={['click']}>
+              <Badge count={unreadCount} size="small" color="#9850fd">
+                <Button shape="circle" icon={<BellOutlined />} aria-label="Уведомления" />
+              </Badge>
+            </Dropdown>
             {!isStaff && (
               <Badge count={cartCount} size="small" color="#9850fd">
                 <Button

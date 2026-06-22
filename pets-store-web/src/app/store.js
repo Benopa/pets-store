@@ -6,6 +6,7 @@ import { ordersReducer } from '@/entities/order';
 import { cartReducer } from '@/entities/cart';
 import { moderatorsReducer } from '@/entities/moderator';
 import { shopsReducer } from '@/entities/shop';
+import { notificationsReducer } from '@/entities/notification';
 
 export const store = configureStore({
   reducer: {
@@ -16,5 +17,6 @@ export const store = configureStore({
     cart: cartReducer,
     moderators: moderatorsReducer,
     shops: shopsReducer,
+    notifications: notificationsReducer,
   },
 });
