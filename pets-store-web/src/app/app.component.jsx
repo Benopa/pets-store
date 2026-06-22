@@ -2,7 +2,15 @@ import { Routes, Route, Navigate } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { useEffect } from 'react';
 import { Header } from '@/widgets/header';
-import { HomePage, LoginPage, RegisterPage, AccountPage, CartPage, ModerationPage } from '@/pages';
+import {
+  HomePage,
+  LoginPage,
+  RegisterPage,
+  AccountPage,
+  CartPage,
+  ModerationPage,
+  ChatPage,
+} from '@/pages';
 import { fetchAnimals, fetchCategories } from '@/entities/animal';
 import { fetchMe } from '@/entities/auth';
 import { fetchNotifications } from '@/entities/notification';
@@ -74,6 +82,14 @@ export const App = () => {
             element={
               <PrivateRoute>
                 <CartPage />
+              </PrivateRoute>
+            }
+          />
+          <Route
+            path="/chat"
+            element={
+              <PrivateRoute>
+                <ChatPage />
               </PrivateRoute>
             }
           />

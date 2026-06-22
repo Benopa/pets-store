@@ -7,6 +7,7 @@ import {
   LogoutOutlined,
   AuditOutlined,
   BellOutlined,
+  MessageOutlined,
 } from '@ant-design/icons';
 import { logout } from '@/entities/auth';
 import {
@@ -14,6 +15,7 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
 } from '@/entities/notification';
+import { selectChatUser, visibleChatsFor, roleInChat, chatUnread } from '@/entities/chat';
 
 const { Header: AntHeader } = Layout;
 
@@ -27,6 +29,12 @@ export const Header = () => {
   );
   const notifications = useSelector((state) => state.notifications.items);
   const unreadCount = useSelector(selectUnreadCount);
+  const chats = useSelector((state) => state.chat.chats);
+  const chatUser = useSelector(selectChatUser);
+  const chatUnreadTotal = visibleChatsFor(chats, chatUser).reduce(
+    (sum, c) => sum + chatUnread(c, roleInChat(c, chatUser)),
+    0,
+  );
 
   const isStaff = role === 'moderator' || role === 'admin';
 
@@ -96,6 +104,14 @@ export const Header = () => {
 
         {accessToken && (
           <Space size="middle">
+            <Badge count={chatUnreadTotal} size="small" color="#9850fd">
+              <Button
+                shape="circle"
+                icon={<MessageOutlined />}
+                onClick={() => navigate('/chat')}
+                aria-label="Сообщения"
+              />
+            </Badge>
             <Dropdown menu={notifMenu} placement="bottomRight" trigger={['click']}>
               <Badge count={unreadCount} size="small" color="#9850fd">
                 <Button shape="circle" icon={<BellOutlined />} aria-label="Уведомления" />
