@@ -291,7 +291,7 @@ export const CartPage = () => {
         title: 'Заказ оформлен!',
         content: `${itemCount} товар(ов) на сумму ${total.toFixed(1)} ₽. История покупок доступна в личном кабинете.`,
         okText: 'К покупкам',
-        onOk: () => navigate('/account'),
+        onOk: () => navigate('/'),
       });
     } else {
       message.error(result.payload || 'Не удалось оформить заказ');
