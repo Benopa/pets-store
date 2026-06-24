@@ -1,4 +1,9 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
@@ -30,6 +35,7 @@ export class OrdersService {
       user: dbUser,
       items: dto.items,
       total: dto.total,
+      address: dto.address,
     });
     const saved = await this.orderRepo.save(order);
     await this.notifySellers(dto, dbUser.id);
@@ -58,6 +64,52 @@ export class OrdersService {
     return this.orderRepo.find({ where: { user: { id: user.id } }, order: { createdAt: 'DESC' } });
   }
 
+  // Продажи продавца: проходим по всем заказам и оставляем только позиции-питомцы,
+  // владелец которых — текущий пользователь. Возвращаем заказ-подобные записи с покупателем,
+  // обогащёнными названием/ценой товара и суммой именно по проданным позициям.
+  async findSales(user: User) {
+    const myAnimals = await this.animalRepo.find({ where: { owner: { id: user.id } } });
+    if (myAnimals.length === 0) {
+      return [];
+    }
+    const byId = new Map(myAnimals.map((animal) => [animal.id, animal] as [string, Animal]));
+
+    const orders = await this.orderRepo.find({ order: { createdAt: 'DESC' } });
+    return orders
+      // Собственные заказы продавца — это покупки, а не продажи.
+      .filter((order) => order.user?.id !== user.id)
+      .map((order) => {
+        const items = (order.items ?? [])
+          .filter((item) => item.type === 'pet' && byId.has(item.itemId))
+          .map((item) => {
+            const animal = byId.get(item.itemId)!;
+            return {
+              type: item.type,
+              itemId: item.itemId,
+              name: animal.name,
+              quantity: item.quantity,
+              price: animal.price != null ? Number(animal.price) : 0,
+            };
+          });
+        return { order, items };
+      })
+      .filter(({ items }) => items.length > 0)
+      .map(({ order, items }) => ({
+        id: order.id,
+        status: order.status,
+        createdAt: order.createdAt,
+        address: order.address ?? null,
+        buyer: {
+          id: order.user?.id ?? null,
+          firstName: order.user?.firstName ?? null,
+          lastName: order.user?.lastName ?? null,
+          email: order.user?.email ?? null,
+        },
+        items,
+        total: items.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0),
+      }));
+  }
+
   async findById(id: string, user: User) {
     const order = await this.orderRepo.findOne({ where: { id } });
     if (!order) {
@@ -80,6 +132,60 @@ export class OrdersService {
     if (dto.status) {
       order.status = dto.status;
     }
+    return this.orderRepo.save(order);
+  }
+
+  // Отменить заказ можно, пока он не получен (delivered) и ещё не отменён.
+  private assertCancellable(order: Order) {
+    if (order.status === 'cancelled') {
+      throw new BadRequestException('Заказ уже отменён');
+    }
+    if (order.status === 'delivered') {
+      throw new BadRequestException('Полученный заказ отменить нельзя');
+    }
+  }
+
+  // Отмена всего заказа.
+  async cancel(id: string, user: User) {
+    const order = await this.findById(id, user);
+    this.assertCancellable(order);
+    order.status = 'cancelled';
+    return this.orderRepo.save(order);
+  }
+
+  // Отмена одной позиции заказа. Сумму уменьшаем на стоимость удалённой позиции;
+  // если позиций не осталось — заказ отменяется целиком.
+  async cancelItem(id: string, itemId: string, user: User) {
+    const order = await this.findById(id, user);
+    this.assertCancellable(order);
+
+    const removed = (order.items ?? []).find((item) => item.itemId === itemId);
+    if (!removed) {
+      throw new NotFoundException('Item not found in order');
+    }
+    const remaining = (order.items ?? []).filter((item) => item.itemId !== itemId);
+
+    const animal = await this.animalRepo.findOne({ where: { id: itemId } });
+    const removedAmount =
+      (animal?.price != null ? Number(animal.price) : 0) * (removed.quantity || 1);
+
+    order.items = remaining;
+    if (order.total != null) {
+      order.total = Math.max(0, Number(order.total) - removedAmount);
+    }
+    if (remaining.length === 0) {
+      order.status = 'cancelled';
+    }
+    return this.orderRepo.save(order);
+  }
+
+  // Подтверждение получения заказа покупателем — после этого отмена недоступна.
+  async markReceived(id: string, user: User) {
+    const order = await this.findById(id, user);
+    if (order.status === 'cancelled') {
+      throw new BadRequestException('Отменённый заказ нельзя отметить полученным');
+    }
+    order.status = 'delivered';
     return this.orderRepo.save(order);
   }
 }

@@ -31,11 +31,12 @@ import {
   ArrowLeftOutlined,
 } from '@ant-design/icons';
 import { fetchMe, updateProfile, changePassword } from '@/entities/auth';
-import { fetchOrders } from '@/entities/order';
+import { fetchOrders, fetchSales } from '@/entities/order';
 import { API_ORIGIN } from '@/shared/config';
 import { ContactForm } from './components/contact-form';
 import { FavoritesGrid } from './components/favorites-grid';
 import { PurchaseHistory } from './components/purchase-history';
+import { SalesHistory } from './components/sales-history';
 import { ProductsManager } from './components/products-manager';
 import { ModeratorsManager } from './components/moderators-manager';
 import { StoresManager } from './components/stores-manager';
@@ -58,6 +59,7 @@ export const AccountPage = () => {
   const { email, firstName, lastName, role, avatar, apiKey, loading, changingPassword } =
     useSelector((state) => state.auth);
   const orders = useSelector((state) => state.orders.items);
+  const sales = useSelector((state) => state.orders.sales);
   const favIds = useSelector((state) => state.favorites.ids);
 
   // Профиль и заказы подтягиваем при входе в кабинет
@@ -66,8 +68,11 @@ export const AccountPage = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    if (apiKey) dispatch(fetchOrders());
-  }, [dispatch, apiKey]);
+    if (!apiKey) return;
+    dispatch(fetchOrders());
+    // Продавцу дополнительно — история его продаж (товары, которые у него купили).
+    if (role === 'seller') dispatch(fetchSales());
+  }, [dispatch, apiKey, role]);
 
   const initialLoading = loading && !email;
   const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Без имени';
@@ -85,9 +90,12 @@ export const AccountPage = () => {
   const isStaff = isAdmin || isModerator; // персонал — не покупает и не продаёт
   const canManage = isAdmin || isSeller;
 
-  const purchasesCount = orders.length;
   const favCount = favIds.length;
+  // Покупателю показываем покупки и потраченное, продавцу — продажи и выручку.
+  const purchasesCount = orders.length;
   const spent = orders.reduce((sum, o) => sum + (o.total != null ? Number(o.total) : 0), 0);
+  const salesCount = sales.length;
+  const revenue = sales.reduce((sum, s) => sum + (s.total != null ? Number(s.total) : 0), 0);
 
   const handleRoleChange = async (value) => {
     if (value === role) return;
@@ -246,22 +254,29 @@ export const AccountPage = () => {
                 <Divider className="!my-5" />
 
                 <Row gutter={16}>
-                  <Col span={8}>
+                  <Col span={isSeller ? 12 : 8}>
                     <Statistic
                       title={isSeller ? 'Продаж' : 'Покупок'}
-                      value={purchasesCount}
+                      value={isSeller ? salesCount : purchasesCount}
                       prefix={<ShoppingOutlined className="text-stone-400" />}
                     />
                   </Col>
-                  <Col span={8}>
+                  {/* Избранное — только у покупателя; у продавца его нет. */}
+                  {!isSeller && (
+                    <Col span={8}>
+                      <Statistic
+                        title="В избранном"
+                        value={favCount}
+                        prefix={<HeartOutlined className="text-stone-400" />}
+                      />
+                    </Col>
+                  )}
+                  <Col span={isSeller ? 12 : 8}>
                     <Statistic
-                      title="В избранном"
-                      value={favCount}
-                      prefix={<HeartOutlined className="text-stone-400" />}
+                      title={isSeller ? 'Выручка' : 'Потрачено'}
+                      value={isSeller ? revenue : spent}
+                      suffix="₽"
                     />
-                  </Col>
-                  <Col span={8}>
-                    <Statistic title="Потрачено" value={spent} suffix="₽" />
                   </Col>
                 </Row>
               </>
@@ -318,15 +333,17 @@ export const AccountPage = () => {
             ),
             children: <StoresManager />,
           },
-          !isStaff && {
-            key: 'favorites',
-            label: (
-              <span>
-                <HeartOutlined /> Избранное
-              </span>
-            ),
-            children: <FavoritesGrid />,
-          },
+          // Избранное доступно только покупателю (не персоналу и не продавцу).
+          !isStaff &&
+            !isSeller && {
+              key: 'favorites',
+              label: (
+                <span>
+                  <HeartOutlined /> Избранное
+                </span>
+              ),
+              children: <FavoritesGrid />,
+            },
           !isStaff && {
             key: 'history',
             label: (
@@ -334,7 +351,7 @@ export const AccountPage = () => {
                 <HistoryOutlined /> {isSeller ? 'История продаж' : 'История покупок'}
               </span>
             ),
-            children: <PurchaseHistory />,
+            children: isSeller ? <SalesHistory /> : <PurchaseHistory />,
           },
           {
             key: 'security',

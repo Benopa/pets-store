@@ -1,8 +1,15 @@
 import { App, Button, Card, Tag, Tooltip, Typography } from 'antd';
-import { HeartFilled, HeartOutlined, ShoppingCartOutlined } from '@ant-design/icons';
+import {
+  HeartFilled,
+  HeartOutlined,
+  MessageOutlined,
+  ShoppingCartOutlined,
+} from '@ant-design/icons';
 import { useDispatch, useSelector } from 'react-redux';
+import { useNavigate } from 'react-router-dom';
 import { addToCart } from '@/entities/cart';
 import { toggleFavorite } from '@/entities/favorites';
+import { startProductChat } from '@/entities/chat';
 import { API_ORIGIN } from '@/shared/config';
 import { setCurrentAnimal } from '../model/animal.slice';
 
@@ -23,10 +30,20 @@ export const MODERATION_STATUS = {
   rejected: { label: 'Отклонён', color: 'error' },
 };
 
+// Имя продавца для карточки/чата: ФИО → email → «Продавец».
+export const sellerNameOf = (animal) =>
+  [animal?.owner?.firstName, animal?.owner?.lastName].filter(Boolean).join(' ') ||
+  animal?.owner?.email ||
+  'Продавец';
+
 export const AnimalCard = ({ animal, readOnly = false }) => {
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { message } = App.useApp();
   const liked = useSelector((state) => state.favorites.ids.includes(animal.id));
+  const userId = useSelector((state) => state.auth.userId);
+  // Свой товар продавцу/админу писать некому — кнопку «Написать продавцу» не показываем.
+  const canMessageSeller = !readOnly && animal.owner?.id && animal.owner.id !== userId;
 
   const imageUrl =
     animal.imageUrl ||
@@ -42,6 +59,18 @@ export const AnimalCard = ({ animal, readOnly = false }) => {
   const handleToggleLike = (e) => {
     e.stopPropagation();
     dispatch(toggleFavorite(animal.id));
+  };
+
+  const handleWriteSeller = (e) => {
+    e.stopPropagation();
+    dispatch(
+      startProductChat({
+        sellerId: animal.owner.id,
+        sellerName: sellerNameOf(animal),
+        productName: animal.name,
+      }),
+    );
+    navigate('/chat');
   };
 
   return (
@@ -102,14 +131,21 @@ export const AnimalCard = ({ animal, readOnly = false }) => {
         </Text>
       )}
 
-      <div className="flex items-center justify-between mt-3">
+      <div className="flex items-center justify-between gap-2 mt-3">
         <Text strong className="text-lg">
           {animal.price != null ? `${Number(animal.price)} ₽` : '—'}
         </Text>
         {!readOnly && (
-          <Button type="primary" icon={<ShoppingCartOutlined />} onClick={handleAddToCart}>
-            В корзину
-          </Button>
+          <div className="flex items-center gap-2">
+            {canMessageSeller && (
+              <Tooltip title="Написать продавцу">
+                <Button icon={<MessageOutlined />} onClick={handleWriteSeller} />
+              </Tooltip>
+            )}
+            <Button type="primary" icon={<ShoppingCartOutlined />} onClick={handleAddToCart}>
+              В корзину
+            </Button>
+          </div>
         )}
       </div>
     </Card>

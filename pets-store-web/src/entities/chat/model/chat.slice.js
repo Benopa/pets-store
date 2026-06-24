@@ -50,6 +50,47 @@ const chatSlice = createSlice({
         };
       },
     },
+    // «Написать продавцу» с карточки товара: открываем (или создаём) чат покупатель↔продавец
+    // по конкретному товару и смотрим на него глазами покупателя.
+    startProductChat: {
+      reducer(state, action) {
+        const { id, sellerId, sellerName, productName } = action.payload;
+        state.demoRole = 'buyer';
+        const buyer = DEMO_USERS.buyer;
+        const existing = state.chats.find(
+          (c) =>
+            c.kind === 'buyer-seller' &&
+            c.buyer?.id === buyer.id &&
+            c.seller?.id === sellerId &&
+            c.productName === productName,
+        );
+        if (existing) {
+          state.selectedId = existing.id;
+          return;
+        }
+        const chat = {
+          id,
+          kind: 'buyer-seller',
+          productName,
+          buyer: { id: buyer.id, name: displayName(buyer) },
+          seller: { id: sellerId, name: sellerName || 'Продавец' },
+          read: {},
+          messages: [],
+        };
+        state.chats.unshift(chat);
+        state.selectedId = chat.id;
+      },
+      prepare({ sellerId, sellerName, productName }) {
+        return {
+          payload: {
+            id: 'ch' + nanoid(6),
+            sellerId,
+            sellerName,
+            productName: productName || '',
+          },
+        };
+      },
+    },
     startSupportChat: {
       reducer(state, action) {
         const user = DEMO_USERS[state.demoRole];
@@ -126,6 +167,7 @@ export const {
   selectChat,
   markChatRead,
   sendMessage,
+  startProductChat,
   startSupportChat,
   startStaffChat,
 } = chatSlice.actions;

@@ -21,8 +21,12 @@ export class UpdateOrderDto {
   @IsNumber()
   total?: number;
 
-  @ApiProperty({ example: 'paid', required: false, enum: ['created', 'paid', 'shipped', 'cancelled'] })
+  @ApiProperty({
+    example: 'paid',
+    required: false,
+    enum: ['created', 'paid', 'shipped', 'delivered', 'cancelled'],
+  })
   @IsOptional()
-  @IsIn(['created', 'paid', 'shipped', 'cancelled'])
-  status?: 'created' | 'paid' | 'shipped' | 'cancelled';
+  @IsIn(['created', 'paid', 'shipped', 'delivered', 'cancelled'])
+  status?: 'created' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
 }

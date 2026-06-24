@@ -277,7 +277,9 @@ export const CartPage = () => {
       return;
     }
     setSubmitting(true);
-    const result = await dispatch(checkout({ selectedIds, total, comment: comment.trim() }));
+    const result = await dispatch(
+      checkout({ selectedIds, total, comment: comment.trim(), address: address.trim() }),
+    );
     setSubmitting(false);
     if (checkout.fulfilled.match(result)) {
       setCheckoutOpen(false);

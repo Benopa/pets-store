@@ -1,8 +1,16 @@
 import { Filter } from './components/filter/filter';
-import { AnimalCard, CATEGORY_COLOR, PhotoGallery, setCurrentAnimal } from '@/entities/animal';
+import {
+  AnimalCard,
+  CATEGORY_COLOR,
+  PhotoGallery,
+  sellerNameOf,
+  setCurrentAnimal,
+} from '@/entities/animal';
 import { addToCart } from '@/entities/cart';
 import { toggleFavorite } from '@/entities/favorites';
+import { startProductChat } from '@/entities/chat';
 import { useMemo } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import {
   Alert,
@@ -17,7 +25,12 @@ import {
   Divider,
   Descriptions,
 } from 'antd';
-import { ShoppingCartOutlined, HeartOutlined, HeartFilled } from '@ant-design/icons';
+import {
+  ShoppingCartOutlined,
+  HeartOutlined,
+  HeartFilled,
+  MessageOutlined,
+} from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;
 
@@ -25,9 +38,11 @@ export const HomePage = () => {
   const { animals, loading, error, currentAnimal, sort } = useSelector((state) => state.animal);
 
   const dispatch = useDispatch();
+  const navigate = useNavigate();
   const { message } = App.useApp();
   const favIds = useSelector((state) => state.favorites.ids);
   const role = useSelector((state) => state.auth.role);
+  const userId = useSelector((state) => state.auth.userId);
   // Персонал (админ/модератор) не покупает — каталог в режиме просмотра (без «В корзину»/избранного).
   const readOnly = role === 'admin' || role === 'moderator';
 
@@ -56,6 +71,21 @@ export const HomePage = () => {
   const liked = currentAnimal ? favIds.includes(currentAnimal.id) : false;
   const handleToggleFav = () => {
     if (currentAnimal) dispatch(toggleFavorite(currentAnimal.id));
+  };
+
+  // Чужой товар можно обсудить с продавцом; свой — нет.
+  const canMessageSeller =
+    !readOnly && currentAnimal?.owner?.id && currentAnimal.owner.id !== userId;
+  const handleWriteSeller = () => {
+    dispatch(
+      startProductChat({
+        sellerId: currentAnimal.owner.id,
+        sellerName: sellerNameOf(currentAnimal),
+        productName: currentAnimal.name,
+      }),
+    );
+    closeModal();
+    navigate('/chat');
   };
 
   return (
@@ -120,6 +150,11 @@ export const HomePage = () => {
                 >
                   {liked ? 'В избранном' : 'В избранное'}
                 </Button>,
+                canMessageSeller && (
+                  <Button key="chat" icon={<MessageOutlined />} onClick={handleWriteSeller}>
+                    Написать продавцу
+                  </Button>
+                ),
                 <Button key="close" onClick={closeModal}>
                   Закрыть
                 </Button>,

@@ -49,7 +49,10 @@ export const clearCart = () => (dispatch) => {
 // убираем из корзины только заказанное (остальное остаётся) → обновляем историю.
 export const checkout = createAsyncThunk(
   'cart/checkout',
-  async ({ selectedIds, total, comment } = {}, { getState, dispatch, rejectWithValue }) => {
+  async (
+    { selectedIds, total, comment, address } = {},
+    { getState, dispatch, rejectWithValue },
+  ) => {
     try {
       const apiKey = getState().auth?.apiKey;
       const cartItems = getState().cart.items;
@@ -65,7 +68,7 @@ export const checkout = createAsyncThunk(
         }));
       const response = await axios.post(
         '/api/orders',
-        { items, total },
+        { items, total, ...(address ? { address } : {}) },
         { headers: apiKey ? { 'x-api-key': apiKey } : {} },
       );
       ids.forEach((id) => dispatch(removeItem(id)));

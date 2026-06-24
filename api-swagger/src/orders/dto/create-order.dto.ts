@@ -1,6 +1,13 @@
 import { ApiProperty } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
-import { ArrayMinSize, IsArray, IsOptional, IsNumber, ValidateNested } from 'class-validator';
+import {
+  ArrayMinSize,
+  IsArray,
+  IsOptional,
+  IsNumber,
+  IsString,
+  ValidateNested,
+} from 'class-validator';
 import { OrderItemDto } from './order-item.dto';
 
 export class CreateOrderDto {
@@ -20,4 +27,9 @@ export class CreateOrderDto {
   @IsOptional()
   @IsNumber()
   total?: number;
+
+  @ApiProperty({ example: 'Москва, ул. Пушкина, д. 1, кв. 5', required: false })
+  @IsOptional()
+  @IsString()
+  address?: string;
 }

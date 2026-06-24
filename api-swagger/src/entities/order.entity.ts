@@ -1,7 +1,8 @@
 import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { User } from './user.entity';
 
-export type OrderStatus = 'created' | 'paid' | 'shipped' | 'cancelled';
+// delivered — заказ получен покупателем (терминальный статус, отмена больше недоступна).
+export type OrderStatus = 'created' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
 
 export interface OrderItem {
   type: 'pet' | 'food';
@@ -26,6 +27,10 @@ export class Order {
 
   @Column({ type: 'numeric', nullable: true })
   total?: number;
+
+  // Адрес доставки заказа (как указал покупатель при оформлении).
+  @Column({ type: 'varchar', nullable: true })
+  address?: string;
 
   @CreateDateColumn()
   createdAt!: Date;
