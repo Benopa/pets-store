@@ -71,6 +71,7 @@ const ProductEditModalInner = ({ animal, onClose }) => {
     description: animal?.description ?? '',
     ageMonths: animal?.ageMonths ?? null,
     price: animal?.price != null ? Number(animal.price) : null,
+    stock: animal?.stock ?? 1,
   };
 
   const isImage = (file) => {
@@ -132,6 +133,7 @@ const ProductEditModalInner = ({ animal, onClose }) => {
       description: vals.description?.trim() || undefined,
       ageMonths: vals.ageMonths ?? undefined,
       price: vals.price ?? undefined,
+      stock: vals.stock ?? undefined,
     };
     setSaving(true);
     // В edit-режиме фото уже сохранены на сервере, передаём только поля.
@@ -273,6 +275,14 @@ const ProductEditModalInner = ({ animal, onClose }) => {
             rules={[{ required: true, message: 'Укажите цену' }]}
           >
             <InputNumber size="large" min={0} step={0.5} className="w-full!" />
+          </Form.Item>
+          <Form.Item
+            name="stock"
+            label="Остаток (шт.)"
+            className="flex-1"
+            rules={[{ required: true, message: 'Укажите остаток' }]}
+          >
+            <InputNumber size="large" min={0} max={100000} className="w-full!" />
           </Form.Item>
         </div>
       </Form>

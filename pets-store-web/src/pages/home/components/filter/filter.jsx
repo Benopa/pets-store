@@ -1,7 +1,16 @@
 import { useDispatch, useSelector } from 'react-redux';
-import { Input, Select, Segmented } from 'antd';
-import { SearchOutlined, AppstoreOutlined } from '@ant-design/icons';
+import { Input, Select } from 'antd';
+import { SearchOutlined, AppstoreOutlined, SortAscendingOutlined } from '@ant-design/icons';
 import { setCategoryId, setSearch, setSort } from '@/entities/animal';
+
+// Варианты сортировки каталога (логика — в home.page.jsx).
+const SORT_OPTIONS = [
+  { value: 'name', label: 'По имени' },
+  { value: 'createdAt', label: 'Сначала новые' },
+  { value: 'priceAsc', label: 'Сначала дешёвые' },
+  { value: 'priceDesc', label: 'Сначала дорогие' },
+  { value: 'age', label: 'Сначала молодые' },
+];
 
 export const Filter = () => {
   const dispatch = useDispatch();
@@ -34,14 +43,13 @@ export const Filter = () => {
           options={optionsCategories}
         />
       </div>
-      <Segmented
+      <Select
         value={sort}
         onChange={(value) => dispatch(setSort(value))}
-        options={[
-          { label: 'По имени', value: 'name' },
-          { label: 'Дешевле', value: 'priceAsc' },
-          { label: 'Младше', value: 'age' },
-        ]}
+        className="sm:w-56"
+        size="large"
+        suffixIcon={<SortAscendingOutlined />}
+        options={SORT_OPTIONS}
       />
     </div>
   );

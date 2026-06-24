@@ -44,25 +44,29 @@ const imageOf = (animal) =>
   animal.image ||
   (animal.images?.[0]?.url ? `${API_ORIGIN}${animal.images[0].url}` : null);
 
-const QtyStepper = ({ value, onChange }) => (
-  <div className="inline-flex items-center overflow-hidden rounded-lg border border-stone-200">
-    <button
-      onClick={() => onChange(value - 1)}
-      aria-label="Меньше"
-      className="grid h-9 w-9 place-items-center border-0 bg-transparent text-stone-500 hover:bg-stone-50 cursor-pointer"
-    >
-      <MinusOutlined />
-    </button>
-    <span className="w-9 select-none text-center text-sm">{value}</span>
-    <button
-      onClick={() => onChange(value + 1)}
-      aria-label="Больше"
-      className="grid h-9 w-9 place-items-center border-0 bg-transparent text-stone-500 hover:bg-stone-50 cursor-pointer"
-    >
-      <PlusOutlined />
-    </button>
-  </div>
-);
+const QtyStepper = ({ value, max, onChange }) => {
+  const atMax = max != null && value >= max;
+  return (
+    <div className="inline-flex items-center overflow-hidden rounded-lg border border-stone-200">
+      <button
+        onClick={() => onChange(value - 1)}
+        aria-label="Меньше"
+        className="grid h-9 w-9 place-items-center border-0 bg-transparent text-stone-500 hover:bg-stone-50 cursor-pointer"
+      >
+        <MinusOutlined />
+      </button>
+      <span className="w-9 select-none text-center text-sm">{value}</span>
+      <button
+        onClick={() => onChange(value + 1)}
+        disabled={atMax}
+        aria-label="Больше"
+        className="grid h-9 w-9 place-items-center border-0 bg-transparent text-stone-500 hover:bg-stone-50 cursor-pointer disabled:cursor-not-allowed disabled:text-stone-300 disabled:hover:bg-transparent"
+      >
+        <PlusOutlined />
+      </button>
+    </div>
+  );
+};
 
 // Модальное окно «Оформление заказа»: проверка чека и данных доставки с возможностью их изменить.
 // Управляемый компонент — значения и обработчики приходят из CartPage.
@@ -387,7 +391,18 @@ export const CartPage = () => {
                   </div>
 
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                    <QtyStepper value={qty} onChange={(v) => dispatch(setCartQty(animal.id, v))} />
+                    <QtyStepper
+                      value={qty}
+                      max={animal.stock}
+                      onChange={(v) =>
+                        dispatch(
+                          setCartQty(
+                            animal.id,
+                            animal.stock != null ? Math.min(v, animal.stock) : v,
+                          ),
+                        )
+                      }
+                    />
                     <div className="flex items-center gap-3">
                       <Text strong className="text-base">
                         {(Number(animal.price) * qty).toFixed(1)} ₽
@@ -403,6 +418,13 @@ export const CartPage = () => {
                       </Tooltip>
                     </div>
                   </div>
+                  {animal.stock != null && qty >= animal.stock && (
+                    <Text type="warning" className="mt-1 block text-xs">
+                      {animal.stock === 0
+                        ? 'Товар закончился'
+                        : `Больше нет в наличии: осталось ${animal.stock} шт.`}
+                    </Text>
+                  )}
                 </div>
               </div>
             </Card>

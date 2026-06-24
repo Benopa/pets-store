@@ -39,7 +39,10 @@ export const App = () => {
   const { categoryId, search } = useSelector((state) => state.animal);
   const accessToken = useSelector((state) => state.auth.accessToken);
   useEffect(() => {
-    dispatch(fetchAnimals({ categoryId, name: search }));
+    // Грузим весь каталог в стор — экраны (главная/корзина/кабинет) фильтруют и
+    // резолвят товары на клиенте. Без явного limit бэкенд режет до 20, из-за чего
+    // одобренные товары вытесняются свежими pending и каталог выглядит пустым.
+    dispatch(fetchAnimals({ categoryId, name: search, limit: 100 }));
   }, [dispatch, categoryId, search]);
   useEffect(() => {
     dispatch(fetchCategories());

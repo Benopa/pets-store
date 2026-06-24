@@ -42,6 +42,12 @@ export const AnimalCard = ({ animal, readOnly = false }) => {
   const { message } = App.useApp();
   const liked = useSelector((state) => state.favorites.ids.includes(animal.id));
   const userId = useSelector((state) => state.auth.userId);
+  const cartQty = useSelector(
+    (state) => state.cart.items.find((i) => i.animalId === animal.id)?.quantity ?? 0,
+  );
+  // Остаток на складе: при 0 — «Нет в наличии», покупка недоступна.
+  const stock = animal.stock;
+  const outOfStock = stock === 0;
   // Свой товар продавцу/админу писать некому — кнопку «Написать продавцу» не показываем.
   const canMessageSeller = !readOnly && animal.owner?.id && animal.owner.id !== userId;
 
@@ -52,6 +58,11 @@ export const AnimalCard = ({ animal, readOnly = false }) => {
 
   const handleAddToCart = (e) => {
     e.stopPropagation();
+    if (outOfStock) return;
+    if (stock != null && cartQty >= stock) {
+      message.warning(`Больше нет в наличии: осталось ${stock} шт.`);
+      return;
+    }
     dispatch(addToCart(animal.id));
     message.success(`«${animal.name}» добавлен в корзину`);
   };
@@ -131,6 +142,12 @@ export const AnimalCard = ({ animal, readOnly = false }) => {
         </Text>
       )}
 
+      {stock != null && (
+        <Text type={outOfStock ? 'danger' : 'secondary'} className="block mt-2 text-xs">
+          {outOfStock ? 'Нет в наличии' : `Осталось ${stock} шт.`}
+        </Text>
+      )}
+
       <div className="flex items-center justify-between gap-2 mt-3">
         <Text strong className="text-lg">
           {animal.price != null ? `${Number(animal.price)} ₽` : '—'}
@@ -142,8 +159,13 @@ export const AnimalCard = ({ animal, readOnly = false }) => {
                 <Button icon={<MessageOutlined />} onClick={handleWriteSeller} />
               </Tooltip>
             )}
-            <Button type="primary" icon={<ShoppingCartOutlined />} onClick={handleAddToCart}>
-              В корзину
+            <Button
+              type="primary"
+              icon={<ShoppingCartOutlined />}
+              onClick={handleAddToCart}
+              disabled={outOfStock}
+            >
+              {outOfStock ? 'Нет в наличии' : 'В корзину'}
             </Button>
           </div>
         )}

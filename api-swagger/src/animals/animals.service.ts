@@ -43,6 +43,7 @@ export class AnimalsService {
       ageMonths: dto.ageMonths,
       price: dto.price,
       weightKg: dto.weightKg,
+      stock: dto.stock ?? 30,
       status: dto.status ?? 'available',
       moderationStatus,
       category,
@@ -159,6 +160,9 @@ export class AnimalsService {
     }
     if (dto.status !== undefined) {
       animal.status = dto.status;
+    }
+    if (dto.stock !== undefined) {
+      animal.stock = dto.stock;
     }
     if (dto.categoryId) {
       const category = await this.categoryRepo.findOne({ where: { id: dto.categoryId } });

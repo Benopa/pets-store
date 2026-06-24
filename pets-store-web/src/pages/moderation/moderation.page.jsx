@@ -57,9 +57,10 @@ export const ModerationPage = () => {
   const { message, modal } = App.useApp();
   const animals = useSelector((state) => state.animal.animals);
 
-  // Подтягиваем свежий список при входе на страницу.
+  // Подтягиваем свежий список при входе на страницу (весь, без лимита 20 —
+  // иначе очередь модерации и общий каталог увидят лишь 20 свежих карточек).
   useEffect(() => {
-    dispatch(fetchAnimals({}));
+    dispatch(fetchAnimals({ limit: 100 }));
   }, [dispatch]);
 
   const pending = useMemo(() => animals.filter((a) => a.moderationStatus === 'pending'), [animals]);

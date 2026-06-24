@@ -1,12 +1,24 @@
 import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
-import { Button, Divider, Empty, List, Modal, Skeleton, Tag, Typography } from 'antd';
+import {
+  Button,
+  Divider,
+  Empty,
+  Input,
+  List,
+  Modal,
+  Select,
+  Skeleton,
+  Tag,
+  Typography,
+} from 'antd';
 import {
   CheckCircleOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
   EnvironmentOutlined,
+  SearchOutlined,
   UserOutlined,
 } from '@ant-design/icons';
 import { setCurrentAnimal } from '@/entities/animal';
@@ -23,6 +35,12 @@ const STATUS_META = {
   cancelled: { label: 'Отменён', color: 'error', icon: <CloseCircleOutlined /> },
 };
 
+// Опции фильтра по статусу: «Все» + статусы из STATUS_META (метки держим в одном месте).
+const STATUS_OPTIONS = [
+  { value: 'all', label: 'Все статусы' },
+  ...Object.entries(STATUS_META).map(([value, meta]) => ({ value, label: meta.label })),
+];
+
 const buyerNameOf = (buyer) =>
   [buyer?.firstName, buyer?.lastName].filter(Boolean).join(' ') || buyer?.email || 'Покупатель';
 
@@ -37,6 +55,13 @@ export const SalesHistory = () => {
   const animals = useSelector((state) => state.animal.animals);
   // Выбранная продажа для подробного просмотра (модальное окно).
   const [detail, setDetail] = useState(null);
+  // Поиск по номеру (первые 8 символов) или полному id заказа + текущая страница.
+  const [search, setSearch] = useState('');
+  const [page, setPage] = useState(1);
+  // Сортировка по сумме заказа: 'date' (как пришло, новые сверху) | 'priceAsc' | 'priceDesc'.
+  const [sort, setSort] = useState('date');
+  // Фильтр по статусу заказа: 'all' | created | paid | shipped | delivered | cancelled.
+  const [status, setStatus] = useState('all');
 
   if (salesLoading) {
     return <Skeleton active paragraph={{ rows: 4 }} />;
@@ -63,11 +88,76 @@ export const SalesHistory = () => {
   const detailMeta = detail ? (STATUS_META[detail.status] ?? STATUS_META.created) : null;
   const anyCardAvailable = (detail?.items ?? []).some((it) => animalOf(it.itemId));
 
+  // Фильтр по статусу + поиску. Короткий номер заказа — префикс полного id,
+  // поэтому одного includes по id хватает и на номер, и на полный id.
+  const q = search.trim().toLowerCase();
+  const filtered = sales.filter((s) => {
+    if (status !== 'all' && s.status !== status) return false;
+    if (q && !String(s.id).toLowerCase().includes(q)) return false;
+    return true;
+  });
+
+  // Сортировка по сумме заказа (total). 'date' оставляет порядок с бэкенда (новые сверху).
+  const sorted = [...filtered];
+  if (sort === 'priceAsc') sorted.sort((a, b) => (Number(a.total) || 0) - (Number(b.total) || 0));
+  if (sort === 'priceDesc') sorted.sort((a, b) => (Number(b.total) || 0) - (Number(a.total) || 0));
+
   return (
     <>
+      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <Input
+          allowClear
+          size="large"
+          value={search}
+          onChange={(e) => {
+            setSearch(e.target.value);
+            setPage(1);
+          }}
+          prefix={<SearchOutlined className="text-stone-400" />}
+          placeholder="Поиск по номеру или ID заказа"
+          className="sm:max-w-sm"
+        />
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+          <Select
+            value={status}
+            size="large"
+            className="sm:w-44"
+            onChange={(value) => {
+              setStatus(value);
+              setPage(1);
+            }}
+            options={STATUS_OPTIONS}
+          />
+          <Select
+            value={sort}
+            size="large"
+            className="sm:w-52"
+            onChange={(value) => {
+              setSort(value);
+              setPage(1);
+            }}
+            options={[
+              { value: 'date', label: 'Сначала новые' },
+              { value: 'priceAsc', label: 'Сначала дешевле' },
+              { value: 'priceDesc', label: 'Сначала дороже' },
+            ]}
+          />
+        </div>
+      </div>
       <List
         itemLayout="horizontal"
-        dataSource={sales}
+        dataSource={sorted}
+        locale={{
+          emptyText: <Empty description="Заказы не найдены" image={Empty.PRESENTED_IMAGE_SIMPLE} />,
+        }}
+        pagination={{
+          current: page,
+          pageSize: 20,
+          align: 'center',
+          hideOnSinglePage: true,
+          showSizeChanger: false,
+          onChange: setPage,
+        }}
         renderItem={(sale) => {
           const meta = STATUS_META[sale.status] ?? STATUS_META.created;
           const items = sale.items ?? [];

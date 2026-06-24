@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsInt, IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
 
 export class UpdateAnimalDto {
   @ApiProperty({ example: 'Tommy', required: false })
@@ -40,6 +40,12 @@ export class UpdateAnimalDto {
   @IsNumber()
   @Min(0)
   weightKg?: number;
+
+  @ApiProperty({ example: 25, required: false, description: 'Остаток на складе (шт.)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  stock?: number;
 
   @ApiProperty({ example: 'sold', required: false })
   @IsOptional()

@@ -171,6 +171,11 @@ export const ProductsManager = () => {
                         {MODERATION_STATUS[animal.moderationStatus].label}
                       </Tag>
                     )}
+                    {animal.stock === 0 && (
+                      <Tag color="error" className="!mr-0">
+                        Нет в наличии
+                      </Tag>
+                    )}
                     {isAdmin && animal.owner && animal.owner.id !== userId && (
                       <Tag className="!mr-0">{ownerLabel(animal.owner)}</Tag>
                     )}
@@ -183,6 +188,7 @@ export const ProductsManager = () => {
                         animal.species,
                         animal.ageMonths != null && `${animal.ageMonths} мес.`,
                         animal.price != null && `${Number(animal.price)} ₽`,
+                        animal.stock != null && `Остаток: ${animal.stock} шт.`,
                       ]
                         .filter(Boolean)
                         .join(' · ')}

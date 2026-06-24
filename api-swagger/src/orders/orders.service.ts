@@ -31,6 +31,8 @@ export class OrdersService {
     if (!dbUser) {
       throw new NotFoundException('User not found');
     }
+    // Списываем остаток со склада (с проверкой наличия) до создания заказа.
+    await this.decrementStock(dto.items);
     const order = this.orderRepo.create({
       user: dbUser,
       items: dto.items,
@@ -40,6 +42,47 @@ export class OrdersService {
     const saved = await this.orderRepo.save(order);
     await this.notifySellers(dto, dbUser.id);
     return saved;
+  }
+
+  // Списание остатка при оформлении: сначала проверяем наличие по всем позициям-питомцам,
+  // и только потом уменьшаем — чтобы при нехватке хотя бы одной позиции ничего не сохранить.
+  private async decrementStock(items: { type: string; itemId: string; quantity: number }[]) {
+    const petItems = items.filter((item) => item.type === 'pet');
+    const toSave: Animal[] = [];
+    for (const item of petItems) {
+      const animal = await this.animalRepo.findOne({ where: { id: item.itemId } });
+      if (!animal) {
+        continue; // позиция без привязки к товару — пропускаем
+      }
+      const qty = item.quantity || 1;
+      if (animal.stock < qty) {
+        throw new BadRequestException(
+          `Недостаточно товара «${animal.name}»: осталось ${animal.stock} шт.`,
+        );
+      }
+      animal.stock -= qty;
+      toSave.push(animal);
+    }
+    if (toSave.length) {
+      await this.animalRepo.save(toSave);
+    }
+  }
+
+  // Возврат остатка на склад при отмене заказа или отдельной позиции.
+  private async restoreStock(items: { type: string; itemId: string; quantity: number }[]) {
+    const petItems = items.filter((item) => item.type === 'pet');
+    const toSave: Animal[] = [];
+    for (const item of petItems) {
+      const animal = await this.animalRepo.findOne({ where: { id: item.itemId } });
+      if (!animal) {
+        continue;
+      }
+      animal.stock += item.quantity || 1;
+      toSave.push(animal);
+    }
+    if (toSave.length) {
+      await this.animalRepo.save(toSave);
+    }
   }
 
   // Уведомляем продавцов о заказе их питомцев. Только позиции type='pet' привязаны к товару
@@ -149,6 +192,8 @@ export class OrdersService {
   async cancel(id: string, user: User) {
     const order = await this.findById(id, user);
     this.assertCancellable(order);
+    // Возвращаем остаток по всем позициям отменяемого заказа.
+    await this.restoreStock(order.items ?? []);
     order.status = 'cancelled';
     return this.orderRepo.save(order);
   }
@@ -163,6 +208,8 @@ export class OrdersService {
     if (!removed) {
       throw new NotFoundException('Item not found in order');
     }
+    // Возвращаем остаток по отменяемой позиции.
+    await this.restoreStock([removed]);
     const remaining = (order.items ?? []).filter((item) => item.itemId !== itemId);
 
     const animal = await this.animalRepo.findOne({ where: { id: itemId } });

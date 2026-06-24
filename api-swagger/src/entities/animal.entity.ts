@@ -29,6 +29,11 @@ export class Animal {
   @Column({ type: 'numeric', nullable: true })
   weightKg?: number;
 
+  // Остаток на складе: сколько единиц доступно к покупке. Списывается при оформлении
+  // заказа, возвращается при отмене. При 0 покупка недоступна («Нет в наличии»).
+  @Column({ type: 'int', default: 30 })
+  stock!: number;
+
   @Column({ default: 'available' })
   status!: string;
 

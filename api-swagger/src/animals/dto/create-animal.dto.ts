@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
+import { IsInt, IsNumber, IsOptional, IsString, Min, MinLength } from 'class-validator';
 
 export class CreateAnimalDto {
   @ApiProperty({ example: 'Tom' })
@@ -39,6 +39,12 @@ export class CreateAnimalDto {
   @IsNumber()
   @Min(0)
   weightKg?: number;
+
+  @ApiProperty({ example: 30, required: false, description: 'Остаток на складе (шт.)' })
+  @IsOptional()
+  @IsInt()
+  @Min(0)
+  stock?: number;
 
   @ApiProperty({ example: 'available', required: false })
   @IsOptional()

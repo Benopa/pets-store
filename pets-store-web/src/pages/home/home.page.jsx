@@ -43,6 +43,7 @@ export const HomePage = () => {
   const favIds = useSelector((state) => state.favorites.ids);
   const role = useSelector((state) => state.auth.role);
   const userId = useSelector((state) => state.auth.userId);
+  const cartItems = useSelector((state) => state.cart.items);
   // Персонал (админ/модератор) не покупает — каталог в режиме просмотра (без «В корзину»/избранного).
   const readOnly = role === 'admin' || role === 'moderator';
 
@@ -55,14 +56,25 @@ export const HomePage = () => {
   const sortedAnimals = useMemo(() => {
     const sorted = [...visibleAnimals];
     if (sort === 'name') sorted.sort((a, b) => a.name.localeCompare(b.name));
-    if (sort === 'priceAsc') sorted.sort((a, b) => a.price - b.price);
-    if (sort === 'age') sorted.sort((a, b) => a.ageMonths - b.ageMonths);
+    if (sort === 'priceAsc') sorted.sort((a, b) => (Number(a.price) || 0) - (Number(b.price) || 0));
+    if (sort === 'priceDesc')
+      sorted.sort((a, b) => (Number(b.price) || 0) - (Number(a.price) || 0));
+    if (sort === 'age') sorted.sort((a, b) => (a.ageMonths ?? 0) - (b.ageMonths ?? 0));
+    if (sort === 'createdAt')
+      sorted.sort((a, b) => new Date(b.createdAt ?? 0) - new Date(a.createdAt ?? 0));
     return sorted;
   }, [visibleAnimals, sort]);
 
   const closeModal = () => dispatch(setCurrentAnimal(null));
 
   const handleAddToCart = () => {
+    const stock = currentAnimal.stock;
+    const inCart = cartItems.find((i) => i.animalId === currentAnimal.id)?.quantity ?? 0;
+    if (stock === 0) return;
+    if (stock != null && inCart >= stock) {
+      message.warning(`Больше нет в наличии: осталось ${stock} шт.`);
+      return;
+    }
     dispatch(addToCart(currentAnimal.id));
     message.success(`«${currentAnimal.name}» добавлен в корзину`);
     closeModal();
@@ -163,8 +175,11 @@ export const HomePage = () => {
                   type="primary"
                   icon={<ShoppingCartOutlined />}
                   onClick={handleAddToCart}
+                  disabled={currentAnimal?.stock === 0}
                 >
-                  В корзину · {currentAnimal ? Number(currentAnimal.price) : 0} ₽
+                  {currentAnimal?.stock === 0
+                    ? 'Нет в наличии'
+                    : `В корзину · ${currentAnimal ? Number(currentAnimal.price) : 0} ₽`}
                 </Button>,
               ]
         }
@@ -192,9 +207,18 @@ export const HomePage = () => {
                 items={[
                   {
                     key: 'owner',
-                    label: 'Владелец аватара',
-                    children: currentAnimal.description || '—',
+                    label: 'Владелец',
+                    children: sellerNameOf(currentAnimal),
                   },
+                  ...(currentAnimal.description
+                    ? [
+                        {
+                          key: 'description',
+                          label: 'Описание',
+                          children: currentAnimal.description,
+                        },
+                      ]
+                    : []),
                   {
                     key: 'age',
                     label: 'Возраст',
@@ -209,6 +233,20 @@ export const HomePage = () => {
                       </Text>
                     ),
                   },
+                  ...(currentAnimal.stock != null
+                    ? [
+                        {
+                          key: 'stock',
+                          label: 'В наличии',
+                          children:
+                            currentAnimal.stock === 0 ? (
+                              <Text type="danger">Нет в наличии</Text>
+                            ) : (
+                              `${currentAnimal.stock} шт.`
+                            ),
+                        },
+                      ]
+                    : []),
                 ]}
               />
             </div>
