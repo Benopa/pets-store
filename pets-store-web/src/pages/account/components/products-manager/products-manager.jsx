@@ -187,7 +187,11 @@ export const ProductsManager = () => {
                       {[
                         animal.species,
                         animal.ageMonths != null && `${animal.ageMonths} мес.`,
-                        animal.price != null && `${Number(animal.price)} ₽`,
+                        animal.price != null &&
+                          (animal.basePrice != null &&
+                          Number(animal.basePrice) !== Number(animal.price)
+                            ? `${Number(animal.price)} ₽ (ваша цена ${Number(animal.basePrice)} ₽)`
+                            : `${Number(animal.price)} ₽`),
                         animal.stock != null && `Остаток: ${animal.stock} шт.`,
                       ]
                         .filter(Boolean)

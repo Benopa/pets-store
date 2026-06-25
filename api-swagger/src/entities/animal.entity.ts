@@ -23,8 +23,18 @@ export class Animal {
   @Column({ type: 'int', nullable: true })
   ageMonths?: number;
 
+  // Покупательская цена — уже с учётом комиссии сайта (basePrice * (1 + commissionRate)).
+  // Именно её видят покупатели в каталоге, корзине и заказах.
   @Column({ type: 'numeric', nullable: true })
   price?: number;
+
+  // Базовая цена, которую указал продавец (без комиссии сайта).
+  @Column({ type: 'numeric', nullable: true })
+  basePrice?: number;
+
+  // Комиссия сайта (доля): для товаров продавцов — 0.05 (5%), для админских — 0.
+  @Column({ type: 'numeric', default: 0 })
+  commissionRate!: number;
 
   @Column({ type: 'numeric', nullable: true })
   weightKg?: number;
