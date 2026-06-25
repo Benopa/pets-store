@@ -28,6 +28,7 @@ import {
   BankOutlined,
   WalletOutlined,
   EnvironmentOutlined,
+  TagOutlined,
 } from '@ant-design/icons';
 import { CATEGORY_COLOR } from '@/entities/animal';
 import { setCartQty, removeFromCart, clearCart, checkout } from '@/entities/cart';
@@ -38,6 +39,10 @@ const { Title, Text } = Typography;
 
 const DELIVERY_FEE = 300;
 const FREE_FROM = 500;
+// Сервисный сбор — 8% от суммы заказа (товаров), начисляется при оформлении.
+const SERVICE_FEE_RATE = 0.08;
+// Промокоды: код → доля скидки на всю стоимость заказа (товары + доставка + сбор).
+const PROMO_CODES = { PROMO50: 0.5 };
 
 const imageOf = (animal) =>
   animal.imageUrl ||
@@ -75,15 +80,19 @@ const CheckoutModal = ({
   lines,
   subtotal,
   delivery,
+  serviceFee,
+  discount,
   total,
   itemCount,
   address,
   payment,
   comment,
+  promo,
   submitting,
   onAddress,
   onPayment,
   onComment,
+  onPromo,
   onClose,
   onConfirm,
 }) => (
@@ -173,6 +182,28 @@ const CheckoutModal = ({
         onChange={(e) => onComment(e.target.value)}
       />
 
+      <Text strong className="mb-1 mt-4 block">
+        Промокод
+      </Text>
+      <Input
+        size="large"
+        prefix={<TagOutlined className="text-stone-400" />}
+        placeholder="Например, PROMO50"
+        value={promo}
+        onChange={(e) => onPromo(e.target.value)}
+        status={promo.trim() && discount === 0 ? 'warning' : undefined}
+      />
+      {discount > 0 ? (
+        <Text className="mt-1 block text-xs" style={{ color: '#52c41a' }}>
+          <CheckCircleOutlined className="mr-1" />
+          Промокод применён — скидка 50% на заказ
+        </Text>
+      ) : promo.trim() ? (
+        <Text type="secondary" className="mt-1 block text-xs">
+          Промокод не найден
+        </Text>
+      ) : null}
+
       <Divider className="!my-4" />
 
       {/* Итоги */}
@@ -184,6 +215,16 @@ const CheckoutModal = ({
         <Text type="secondary">Доставка</Text>
         <Text>{delivery === 0 ? 'Бесплатно' : `${delivery} ₽`}</Text>
       </div>
+      <div className="mb-1 flex items-center justify-between">
+        <Text type="secondary">Сервисный сбор (8%)</Text>
+        <Text>{serviceFee.toFixed(1)} ₽</Text>
+      </div>
+      {discount > 0 && (
+        <div className="mb-1 flex items-center justify-between">
+          <Text type="secondary">Скидка по промокоду</Text>
+          <Text style={{ color: '#52c41a' }}>−{discount.toFixed(1)} ₽</Text>
+        </div>
+      )}
       <div className="mt-2 flex items-center justify-between">
         <Text strong className="text-lg">
           Итого
@@ -234,7 +275,9 @@ export const CartPage = () => {
   const subtotal = selectedLines.reduce((s, l) => s + Number(l.animal.price) * l.qty, 0);
   const itemCount = selectedLines.reduce((s, l) => s + l.qty, 0);
   const delivery = subtotal >= FREE_FROM || subtotal === 0 ? 0 : DELIVERY_FEE;
-  const total = subtotal + delivery;
+  // Сервисный сбор 8% от суммы заказа (товаров), округляем до копеек.
+  const serviceFee = Math.round(subtotal * SERVICE_FEE_RATE * 100) / 100;
+  const grossTotal = subtotal + delivery + serviceFee;
 
   // Удаляются только выбранные, если выбрана часть корзины — иначе чистим всё.
   const removingSelected = selectedIds.length > 0 && selectedIds.length < lines.length;
@@ -245,11 +288,18 @@ export const CartPage = () => {
   const [address, setAddress] = useState('');
   const [payment, setPayment] = useState('card');
   const [comment, setComment] = useState('');
+  const [promo, setPromo] = useState('');
+
+  // Промокод: скидка на всю стоимость заказа. Итог к оплате — за вычетом скидки.
+  const discountRate = PROMO_CODES[promo.trim().toUpperCase()] ?? 0;
+  const discount = Math.round(grossTotal * discountRate * 100) / 100;
+  const total = grossTotal - discount;
 
   const openCheckout = () => {
     setAddress(profileAddress || '');
     setPayment(profilePayment || 'card');
     setComment('');
+    setPromo('');
     setCheckoutOpen(true);
   };
 
@@ -459,13 +509,17 @@ export const CartPage = () => {
               Бесплатная доставка от {FREE_FROM} ₽
             </Text>
           )}
+          <div className="mb-2 flex items-center justify-between">
+            <Text type="secondary">Сервисный сбор (8%)</Text>
+            <Text>{serviceFee.toFixed(1)} ₽</Text>
+          </div>
           <Divider className="!my-4" />
           <div className="mb-5 flex items-center justify-between">
             <Text strong className="text-lg">
               Итого
             </Text>
             <Text strong className="text-2xl">
-              {total.toFixed(1)} ₽
+              {grossTotal.toFixed(1)} ₽
             </Text>
           </div>
           <Button
@@ -491,15 +545,19 @@ export const CartPage = () => {
         lines={selectedLines}
         subtotal={subtotal}
         delivery={delivery}
+        serviceFee={serviceFee}
+        discount={discount}
         total={total}
         itemCount={itemCount}
         address={address}
         payment={payment}
         comment={comment}
+        promo={promo}
         submitting={submitting}
         onAddress={setAddress}
         onPayment={setPayment}
         onComment={setComment}
+        onPromo={setPromo}
         onClose={() => setCheckoutOpen(false)}
         onConfirm={submitCheckout}
       />
