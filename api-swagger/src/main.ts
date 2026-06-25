@@ -1,6 +1,6 @@
 import 'reflect-metadata';
-import { ValidationPipe } from '@nestjs/common';
-import { NestFactory } from '@nestjs/core';
+import { ClassSerializerInterceptor, ValidationPipe } from '@nestjs/common';
+import { NestFactory, Reflector } from '@nestjs/core';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { join } from 'path';
 import * as express from 'express';
@@ -16,6 +16,11 @@ async function bootstrap() {
       transform: true,
     }),
   );
+
+  // Глобально вырезаем @Exclude-поля (passwordHash, apiKey, PII пользователя) из
+  // сериализуемых сущностей — в т.ч. из вложенных owner/user. Ответы, собранные руками
+  // (toProfile/issueTokens), это не затрагивает: они plain-объекты.
+  app.useGlobalInterceptors(new ClassSerializerInterceptor(app.get(Reflector)));
 
   app.use('/uploads', express.static(join(process.cwd(), 'uploads')));
 

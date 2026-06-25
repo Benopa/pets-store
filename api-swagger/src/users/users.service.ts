@@ -90,6 +90,27 @@ export class UsersService {
     return this.usersRepo.findOne({ where: { email } });
   }
 
+  // passwordHash помечен select:false — для сравнения пароля грузим его явно.
+  async findByEmailWithPassword(email: string): Promise<User | null> {
+    return this.usersRepo
+      .createQueryBuilder('user')
+      .addSelect('user.passwordHash')
+      .where('user.email = :email', { email })
+      .getOne();
+  }
+
+  async findByIdWithPassword(id: string): Promise<User> {
+    const user = await this.usersRepo
+      .createQueryBuilder('user')
+      .addSelect('user.passwordHash')
+      .where('user.id = :id', { id })
+      .getOne();
+    if (!user) {
+      throw new NotFoundException('User not found');
+    }
+    return user;
+  }
+
   async findByApiKey(apiKey: string): Promise<User | null> {
     return this.usersRepo.findOne({ where: { apiKey } });
   }
