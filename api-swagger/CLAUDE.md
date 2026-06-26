@@ -56,7 +56,7 @@ src/
 - `User` — `email`, `passwordHash` (bcrypt), профиль (`firstName`, `lastName`, `birthDate`, `address`, `paymentMethod`, `avatar`), `favorites` (jsonb — id избранных), `cart` (jsonb — `[{animalId, quantity}]`), `role`, уникальный `apiKey`.
   - **Роли**: `admin` | `moderator` | `seller` | `buyer` (по умолчанию `buyer`).
 - `Animal` — основная сущность: `name`, `species`, `price`, `ageMonths`, `status` (`available` по умолчанию), связи `category`/`owner`/`images` (все `eager`).
-  - **Цена и комиссия**: продавец указывает базовую цену `basePrice`; покупательская `price` = `basePrice * (1 + commissionRate)`. Для товаров продавцов `commissionRate = 0.05` (5% в сторону сайта), для админских — `0`. Цена пересчитывается в `AnimalsService` при создании и при правке цены (хелпер `withCommission`).
+  - **Цена и комиссия**: продавец указывает базовую цену `basePrice`; покупательская `price` = `basePrice + floor(basePrice * commissionRate)` (комиссия округляется **вниз до целых рублей**). Для товаров продавцов `commissionRate = 0.05` (5% в сторону сайта), для админских — `0`. Цена пересчитывается в `AnimalsService` при создании и при правке цены (хелпер `withCommission`).
 - `AnimalImage` — изображения животного (`cascade`, `eager`), URL вида `/uploads/<uuid>.<ext>`.
 - `Category`, `Order` — категории и заказы.
 

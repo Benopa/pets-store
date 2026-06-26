@@ -275,8 +275,8 @@ export const CartPage = () => {
   const subtotal = selectedLines.reduce((s, l) => s + Number(l.animal.price) * l.qty, 0);
   const itemCount = selectedLines.reduce((s, l) => s + l.qty, 0);
   const delivery = subtotal >= FREE_FROM || subtotal === 0 ? 0 : DELIVERY_FEE;
-  // Сервисный сбор 8% от суммы заказа (товаров), округляем до копеек.
-  const serviceFee = Math.round(subtotal * SERVICE_FEE_RATE * 100) / 100;
+  // Сервисный сбор 8% от суммы заказа (товаров), округляем вниз до целых рублей.
+  const serviceFee = Math.floor(subtotal * SERVICE_FEE_RATE);
   const grossTotal = subtotal + delivery + serviceFee;
 
   // Удаляются только выбранные, если выбрана часть корзины — иначе чистим всё.

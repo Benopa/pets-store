@@ -10,12 +10,12 @@ import { CreateAnimalDto } from './dto/create-animal.dto';
 import { UpdateAnimalDto } from './dto/update-animal.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 
-// Комиссия сайта на товары продавцов (5%). Покупательская цена = базовая × (1 + ставка).
+// Комиссия сайта на товары продавцов (5%). Покупательская цена = базовая + комиссия (вниз до целых рублей).
 const SELLER_COMMISSION_RATE = 0.05;
 
-// Цена с учётом комиссии (округление до копеек). null/undefined базовая → цена не задаётся.
+// Цена с учётом комиссии: комиссию округляем вниз до целых рублей. null/undefined базовая → цена не задаётся.
 const withCommission = (basePrice: number | null | undefined, rate: number) =>
-  basePrice == null ? undefined : Math.round(Number(basePrice) * (1 + Number(rate)) * 100) / 100;
+  basePrice == null ? undefined : Number(basePrice) + Math.floor(Number(basePrice) * Number(rate));
 
 @Injectable()
 export class AnimalsService {

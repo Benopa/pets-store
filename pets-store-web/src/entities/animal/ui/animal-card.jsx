@@ -27,9 +27,9 @@ export const CATEGORY_COLOR = {
 // (базовую) цену, к ней добавляется эта доля — покупатель видит цену уже с комиссией.
 export const COMMISSION_RATE = 0.05;
 
-// Цена с учётом комиссии: базовая × (1 + ставка), округление до копеек.
+// Цена с учётом комиссии: базовая + комиссия (округление вниз до целых рублей). Синхронизировано с бэкендом.
 export const priceWithCommission = (basePrice, rate = COMMISSION_RATE) =>
-  basePrice == null ? null : Math.round(Number(basePrice) * (1 + Number(rate)) * 100) / 100;
+  basePrice == null ? null : Number(basePrice) + Math.floor(Number(basePrice) * Number(rate));
 
 // Статус модерации → подпись + цвет тега
 export const MODERATION_STATUS = {
