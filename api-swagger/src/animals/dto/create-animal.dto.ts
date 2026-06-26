@@ -28,7 +28,11 @@ export class CreateAnimalDto {
   @Min(0)
   ageMonths?: number;
 
-  @ApiProperty({ example: 120.5, required: false })
+  @ApiProperty({
+    example: 120.5,
+    required: false,
+    description: 'Базовая цена продавца (без комиссии). У товаров продавцов сайт добавит 5%.',
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)

@@ -10,6 +10,13 @@ import { CreateAnimalDto } from './dto/create-animal.dto';
 import { UpdateAnimalDto } from './dto/update-animal.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 
+// Комиссия сайта на товары продавцов (5%). Покупательская цена = базовая × (1 + ставка).
+const SELLER_COMMISSION_RATE = 0.05;
+
+// Цена с учётом комиссии (округление до копеек). null/undefined базовая → цена не задаётся.
+const withCommission = (basePrice: number | null | undefined, rate: number) =>
+  basePrice == null ? undefined : Math.round(Number(basePrice) * (1 + Number(rate)) * 100) / 100;
+
 @Injectable()
 export class AnimalsService {
   constructor(
@@ -35,13 +42,18 @@ export class AnimalsService {
     }
     // Карточки продавцов уходят на модерацию; админ/модератор публикуют сразу.
     const moderationStatus = owner.role === 'seller' ? 'pending' : 'approved';
+    // Комиссия сайта начисляется только на товары продавцов. Продавец указывает свою (базовую)
+    // цену в dto.price; покупательская price уже включает комиссию.
+    const commissionRate = owner.role === 'seller' ? SELLER_COMMISSION_RATE : 0;
     const animal = this.animalRepo.create({
       name: dto.name,
       species: dto.species,
       description: dto.description,
       gender: dto.gender,
       ageMonths: dto.ageMonths,
-      price: dto.price,
+      basePrice: dto.price,
+      commissionRate,
+      price: withCommission(dto.price, commissionRate),
       weightKg: dto.weightKg,
       stock: dto.stock ?? 30,
       status: dto.status ?? 'available',
@@ -153,7 +165,9 @@ export class AnimalsService {
       animal.ageMonths = dto.ageMonths;
     }
     if (dto.price !== undefined) {
-      animal.price = dto.price;
+      // Продавец/админ редактирует базовую цену; покупательскую пересчитываем с комиссией товара.
+      animal.basePrice = dto.price;
+      animal.price = withCommission(dto.price, Number(animal.commissionRate));
     }
     if (dto.weightKg !== undefined) {
       animal.weightKg = dto.weightKg;

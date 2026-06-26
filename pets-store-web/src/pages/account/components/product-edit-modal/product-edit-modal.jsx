@@ -3,6 +3,8 @@ import { useDispatch, useSelector } from 'react-redux';
 import { App, Form, Input, InputNumber, Modal, Select, Spin, Tooltip, Upload } from 'antd';
 import { PlusOutlined, DeleteOutlined, StarOutlined, LoadingOutlined } from '@ant-design/icons';
 import {
+  COMMISSION_RATE,
+  priceWithCommission,
   createAnimal,
   updateAnimal,
   uploadAnimalImage,
@@ -53,8 +55,17 @@ const ProductEditModalInner = ({ animal, onClose }) => {
   const dispatch = useDispatch();
   const { message } = App.useApp();
   const categories = useSelector((state) => state.animal.categories);
+  const role = useSelector((state) => state.auth.role);
   const [form] = Form.useForm();
   const isEdit = Boolean(animal);
+
+  // Ставка комиссии товара: при редактировании — сохранённая в карточке, при создании —
+  // зависит от роли (комиссия начисляется только продавцам).
+  const commissionRate = isEdit
+    ? Number(animal.commissionRate ?? 0)
+    : role === 'seller'
+      ? COMMISSION_RATE
+      : 0;
 
   // EDIT: серверные фото (с id) — операции сразу уходят на бэкенд.
   const [existing, setExisting] = useState(() => (animal?.images ?? []).slice());
@@ -64,15 +75,22 @@ const ProductEditModalInner = ({ animal, onClose }) => {
   const [photoBusy, setPhotoBusy] = useState(false);
   const [saving, setSaving] = useState(false);
 
+  // В форме продавец вводит свою (базовую) цену; покупательская цена с комиссией считается из неё.
+  const basePriceOf = (a) =>
+    a?.basePrice != null ? Number(a.basePrice) : a?.price != null ? Number(a.price) : null;
   const initialValues = {
     name: animal?.name ?? '',
     categoryId: animal?.category?.id,
     species: animal?.species ?? '',
     description: animal?.description ?? '',
     ageMonths: animal?.ageMonths ?? null,
-    price: animal?.price != null ? Number(animal.price) : null,
+    price: basePriceOf(animal),
     stock: animal?.stock ?? 1,
   };
+
+  // Живой предпросмотр цены в каталоге (с комиссией) по мере ввода базовой цены.
+  const basePrice = Form.useWatch('price', form);
+  const catalogPrice = priceWithCommission(basePrice, commissionRate);
 
   const isImage = (file) => {
     if (file.type.startsWith('image/')) return true;
@@ -270,9 +288,18 @@ const ProductEditModalInner = ({ animal, onClose }) => {
           </Form.Item>
           <Form.Item
             name="price"
-            label="Цена (₽)"
+            label={commissionRate > 0 ? 'Ваша цена (₽)' : 'Цена (₽)'}
             className="flex-1"
             rules={[{ required: true, message: 'Укажите цену' }]}
+            extra={
+              commissionRate > 0 && catalogPrice != null ? (
+                <span className="text-xs text-stone-500">
+                  Комиссия сайта {Math.round(commissionRate * 100)}% (+
+                  {Math.round((catalogPrice - basePrice) * 100) / 100} ₽) · в каталоге:{' '}
+                  <span className="font-medium text-stone-700">{catalogPrice} ₽</span>
+                </span>
+              ) : null
+            }
           >
             <InputNumber size="large" min={0} step={0.5} className="w-full!" />
           </Form.Item>

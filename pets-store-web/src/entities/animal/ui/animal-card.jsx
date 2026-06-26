@@ -23,6 +23,14 @@ export const CATEGORY_COLOR = {
   Dogs: 'orange',
 };
 
+// Комиссия сайта на товары продавцов (синхронизировано с бэкендом). Продавец указывает свою
+// (базовую) цену, к ней добавляется эта доля — покупатель видит цену уже с комиссией.
+export const COMMISSION_RATE = 0.05;
+
+// Цена с учётом комиссии: базовая × (1 + ставка), округление до копеек.
+export const priceWithCommission = (basePrice, rate = COMMISSION_RATE) =>
+  basePrice == null ? null : Math.round(Number(basePrice) * (1 + Number(rate)) * 100) / 100;
+
 // Статус модерации → подпись + цвет тега
 export const MODERATION_STATUS = {
   approved: { label: 'Одобрен', color: 'success' },

@@ -29,7 +29,11 @@ export class UpdateAnimalDto {
   @Min(0)
   ageMonths?: number;
 
-  @ApiProperty({ example: 200, required: false })
+  @ApiProperty({
+    example: 200,
+    required: false,
+    description: 'Базовая цена продавца (без комиссии). Покупательская цена пересчитается с комиссией.',
+  })
   @IsOptional()
   @IsNumber()
   @Min(0)

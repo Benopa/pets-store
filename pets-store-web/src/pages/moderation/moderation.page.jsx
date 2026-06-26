@@ -52,6 +52,15 @@ const factsLine = (animal) =>
     .filter(Boolean)
     .join(' · ');
 
+// Есть ли у товара комиссия сайта (товары продавцов). Если есть — показываем разбивку цены.
+const hasCommission = (animal) => Number(animal.commissionRate) > 0 && animal.basePrice != null;
+
+// Подпись с разбивкой: цена продавца + комиссия сайта.
+const commissionLine = (animal) =>
+  `Цена продавца ${Number(animal.basePrice)} ₽ + комиссия ${Math.round(
+    Number(animal.commissionRate) * 100,
+  )}%`;
+
 export const ModerationPage = () => {
   const dispatch = useDispatch();
   const { message, modal } = App.useApp();
@@ -197,9 +206,16 @@ export const ModerationPage = () => {
                     </Space>
                   </div>
                   <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                    <Text strong className="text-base">
-                      {animal.price != null ? `${Number(animal.price)} ₽` : '—'}
-                    </Text>
+                    <div>
+                      <Text strong className="text-base">
+                        {animal.price != null ? `${Number(animal.price)} ₽` : '—'}
+                      </Text>
+                      {hasCommission(animal) && (
+                        <Text type="secondary" className="block text-xs">
+                          {commissionLine(animal)}
+                        </Text>
+                      )}
+                    </div>
                     <Space>
                       <Button onClick={() => setDetail(animal)}>Подробнее</Button>
                       <Button danger icon={<CloseOutlined />} onClick={() => reject(animal)}>
@@ -330,16 +346,28 @@ export const ModerationPage = () => {
                   { key: 'owner', label: 'Продавец', children: ownerLabel(detail.owner) },
                   { key: 'desc', label: 'Описание', children: detail.description || '—' },
                   { key: 'age', label: 'Возраст', children: `${detail.ageMonths ?? '—'} мес.` },
+                  hasCommission(detail) && {
+                    key: 'basePrice',
+                    label: 'Цена продавца',
+                    children: `${Number(detail.basePrice)} ₽`,
+                  },
+                  hasCommission(detail) && {
+                    key: 'commission',
+                    label: 'Комиссия сайта',
+                    children: `${Math.round(Number(detail.commissionRate) * 100)}% (+${
+                      Math.round((Number(detail.price) - Number(detail.basePrice)) * 100) / 100
+                    } ₽)`,
+                  },
                   {
                     key: 'price',
-                    label: 'Цена',
+                    label: hasCommission(detail) ? 'Цена в каталоге' : 'Цена',
                     children: (
                       <Text strong className="text-lg">
                         {detail.price != null ? `${Number(detail.price)} ₽` : '—'}
                       </Text>
                     ),
                   },
-                ]}
+                ].filter(Boolean)}
               />
             </div>
           </div>
