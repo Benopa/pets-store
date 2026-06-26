@@ -92,10 +92,15 @@ export const AccountPage = () => {
 
   const favCount = favIds.length;
   // Покупателю показываем покупки и потраченное, продавцу — продажи и выручку.
+  // Сумму заказов округляем до копеек: при сложении дробных total'ов float даёт «хвост»
+  // вида 2360.4500000000003 — округление до 2 знаков его убирает.
+  const sumTotals = (rows) =>
+    Math.round(rows.reduce((sum, r) => sum + (r.total != null ? Number(r.total) : 0), 0) * 100) /
+    100;
   const purchasesCount = orders.length;
-  const spent = orders.reduce((sum, o) => sum + (o.total != null ? Number(o.total) : 0), 0);
+  const spent = sumTotals(orders);
   const salesCount = sales.length;
-  const revenue = sales.reduce((sum, s) => sum + (s.total != null ? Number(s.total) : 0), 0);
+  const revenue = sumTotals(sales);
 
   const handleRoleChange = async (value) => {
     if (value === role) return;
