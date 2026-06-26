@@ -31,7 +31,7 @@ import {
   ArrowLeftOutlined,
 } from '@ant-design/icons';
 import { fetchMe, updateProfile, changePassword } from '@/entities/auth';
-import { fetchOrders, fetchSales } from '@/entities/order';
+import { fetchOrders, fetchSales, fetchCommission } from '@/entities/order';
 import { API_ORIGIN } from '@/shared/config';
 import { ContactForm } from './components/contact-form';
 import { FavoritesGrid } from './components/favorites-grid';
@@ -60,6 +60,7 @@ export const AccountPage = () => {
     useSelector((state) => state.auth);
   const orders = useSelector((state) => state.orders.items);
   const sales = useSelector((state) => state.orders.sales);
+  const commission = useSelector((state) => state.orders.commission);
   const favIds = useSelector((state) => state.favorites.ids);
 
   // Профиль и заказы подтягиваем при входе в кабинет
@@ -72,6 +73,8 @@ export const AccountPage = () => {
     dispatch(fetchOrders());
     // Продавцу дополнительно — история его продаж (товары, которые у него купили).
     if (role === 'seller') dispatch(fetchSales());
+    // Админу — сводка по комиссии сайта (заработок магазина).
+    if (role === 'admin') dispatch(fetchCommission());
   }, [dispatch, apiKey, role]);
 
   const initialLoading = loading && !email;
@@ -92,11 +95,15 @@ export const AccountPage = () => {
 
   const favCount = favIds.length;
   // Покупателю показываем покупки и потраченное, продавцу — продажи и выручку.
-  // Сумму заказов округляем до копеек: при сложении дробных total'ов float даёт «хвост»
+  // Отменённые заказы в потраченное/выручку не входят (средства не списаны/не начислены).
+  // Сумму округляем до копеек: при сложении дробных total'ов float даёт «хвост»
   // вида 2360.4500000000003 — округление до 2 знаков его убирает.
   const sumTotals = (rows) =>
-    Math.round(rows.reduce((sum, r) => sum + (r.total != null ? Number(r.total) : 0), 0) * 100) /
-    100;
+    Math.round(
+      rows
+        .filter((r) => r.status !== 'cancelled')
+        .reduce((sum, r) => sum + (r.total != null ? Number(r.total) : 0), 0) * 100,
+    ) / 100;
   const purchasesCount = orders.length;
   const spent = sumTotals(orders);
   const salesCount = sales.length;
@@ -281,6 +288,23 @@ export const AccountPage = () => {
                       title={isSeller ? 'Выручка' : 'Потрачено'}
                       value={isSeller ? revenue : spent}
                       suffix="₽"
+                    />
+                  </Col>
+                </Row>
+              </>
+            )}
+
+            {/* Админу — заработок магазина на комиссии (в выручку продавцов не входит). */}
+            {isAdmin && (
+              <>
+                <Divider className="!my-5" />
+                <Row gutter={16}>
+                  <Col span={24}>
+                    <Statistic
+                      title="Комиссия магазина (накоплено)"
+                      value={commission}
+                      suffix="₽"
+                      prefix={<ShopOutlined className="text-stone-400" />}
                     />
                   </Col>
                 </Row>

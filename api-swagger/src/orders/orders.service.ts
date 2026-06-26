@@ -33,11 +33,17 @@ export class OrdersService {
     }
     // Списываем остаток со склада (с проверкой наличия) до создания заказа.
     await this.decrementStock(dto.items);
+    // Онлайн-оплата (карта/СБП) создаётся в статусе «ждём подтверждения из банка» и подтверждается
+    // отдельным запросом после имитации связи с банком; наличные — «оплата при получении».
+    const paymentMethod = dto.paymentMethod ?? 'cash';
+    const paymentStatus = paymentMethod === 'cash' ? 'on_delivery' : 'awaiting';
     const order = this.orderRepo.create({
       user: dbUser,
       items: dto.items,
       total: dto.total,
       address: dto.address,
+      paymentMethod,
+      paymentStatus,
     });
     const saved = await this.orderRepo.save(order);
     await this.notifySellers(dto, dbUser.id);
@@ -126,12 +132,20 @@ export class OrdersService {
           .filter((item) => item.type === 'pet' && byId.has(item.itemId))
           .map((item) => {
             const animal = byId.get(item.itemId)!;
+            // Выручка продавца — его базовая цена (без комиссии сайта). Комиссия идёт магазину
+            // и в выручку продавца не входит. Для старых товаров без basePrice берём price.
+            const sellerPrice =
+              animal.basePrice != null
+                ? Number(animal.basePrice)
+                : animal.price != null
+                  ? Number(animal.price)
+                  : 0;
             return {
               type: item.type,
               itemId: item.itemId,
               name: animal.name,
               quantity: item.quantity,
-              price: animal.price != null ? Number(animal.price) : 0,
+              price: sellerPrice,
             };
           });
         return { order, items };
@@ -140,6 +154,9 @@ export class OrdersService {
       .map(({ order, items }) => ({
         id: order.id,
         status: order.status,
+        cancelReason: order.cancelReason ?? null,
+        paymentMethod: order.paymentMethod ?? null,
+        paymentStatus: order.paymentStatus ?? 'on_delivery',
         createdAt: order.createdAt,
         address: order.address ?? null,
         buyer: {
@@ -151,6 +168,37 @@ export class OrdersService {
         items,
         total: items.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0),
       }));
+  }
+
+  // Сводка по комиссии сайта (только для администратора): сколько магазин заработал на комиссии.
+  // Комиссия по позиции = (покупательская цена − базовая) × количество. Отменённые заказы не в счёт.
+  async commissionSummary(user: User) {
+    if (user.role !== 'admin') {
+      throw new ForbiddenException('Доступно только администратору');
+    }
+    const [orders, animals] = await Promise.all([
+      this.orderRepo.find(),
+      this.animalRepo.find(),
+    ]);
+    const byId = new Map(animals.map((animal) => [animal.id, animal] as [string, Animal]));
+    let commission = 0;
+    for (const order of orders) {
+      if (order.status === 'cancelled') {
+        continue;
+      }
+      for (const item of order.items ?? []) {
+        if (item.type !== 'pet') {
+          continue;
+        }
+        const animal = byId.get(item.itemId);
+        if (!animal) {
+          continue;
+        }
+        const per = Number(animal.price ?? 0) - Number(animal.basePrice ?? 0);
+        commission += per * (item.quantity || 1);
+      }
+    }
+    return { commission: Math.round(commission * 100) / 100 };
   }
 
   async findById(id: string, user: User) {
@@ -226,13 +274,90 @@ export class OrdersService {
     return this.orderRepo.save(order);
   }
 
-  // Подтверждение получения заказа покупателем — после этого отмена недоступна.
+  // Подтверждение получения заказа покупателем — доступно только для заказа в доставке
+  // ('shipped'). После этого статус становится 'delivered' и отмена недоступна.
   async markReceived(id: string, user: User) {
     const order = await this.findById(id, user);
-    if (order.status === 'cancelled') {
-      throw new BadRequestException('Отменённый заказ нельзя отметить полученным');
+    if (order.status !== 'shipped') {
+      throw new BadRequestException('Подтвердить получение можно только для заказа в доставке');
     }
     order.status = 'delivered';
     return this.orderRepo.save(order);
+  }
+
+  // Отмена заказа продавцом с указанием причины. Доступна, если в заказе есть товар продавца
+  // и заказ ещё можно отменить. Возвращаем остаток, ставим статус cancelled, сохраняем причину
+  // и уведомляем покупателя.
+  async cancelBySeller(id: string, reason: string | undefined, user: User) {
+    const order = await this.orderRepo.findOne({ where: { id } });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    const myAnimals = await this.animalRepo.find({ where: { owner: { id: user.id } } });
+    const myIds = new Set(myAnimals.map((animal) => animal.id));
+    const ownsItem = (order.items ?? []).some(
+      (item) => item.type === 'pet' && myIds.has(item.itemId),
+    );
+    if (!ownsItem) {
+      throw new ForbiddenException('Можно отменить только заказ со своим товаром');
+    }
+    if (order.status === 'shipped') {
+      throw new BadRequestException('Заказ уже в доставке — отменить нельзя');
+    }
+    this.assertCancellable(order);
+    await this.restoreStock(order.items ?? []);
+    order.status = 'cancelled';
+    order.cancelReason = reason?.trim() || null;
+    const saved = await this.orderRepo.save(order);
+    await this.notificationsService.create(order.user.id, {
+      type: 'order_cancelled',
+      title: 'Заказ отменён продавцом',
+      body: order.cancelReason
+        ? `Причина: ${order.cancelReason}`
+        : 'Продавец отменил ваш заказ.',
+    });
+    return saved;
+  }
+
+  // Передача заказа в доставку продавцом. Доступна, если в заказе есть товар продавца
+  // и заказ ещё не отменён/не получен/не отправлен. Ставит статус 'shipped' и уведомляет покупателя.
+  async markShipped(id: string, user: User) {
+    const order = await this.orderRepo.findOne({ where: { id } });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    const myAnimals = await this.animalRepo.find({ where: { owner: { id: user.id } } });
+    const myIds = new Set(myAnimals.map((animal) => animal.id));
+    const ownsItem = (order.items ?? []).some(
+      (item) => item.type === 'pet' && myIds.has(item.itemId),
+    );
+    if (!ownsItem) {
+      throw new ForbiddenException('Можно передать в доставку только заказ со своим товаром');
+    }
+    if (order.status === 'cancelled') {
+      throw new BadRequestException('Отменённый заказ нельзя передать в доставку');
+    }
+    if (order.status === 'delivered') {
+      throw new BadRequestException('Полученный заказ уже доставлен');
+    }
+    order.status = 'shipped';
+    const saved = await this.orderRepo.save(order);
+    await this.notificationsService.create(order.user.id, {
+      type: 'order_shipped',
+      title: 'Заказ передан в доставку',
+      body: 'Ваш заказ в доставке.',
+    });
+    return saved;
+  }
+
+  // Подтверждение онлайн-оплаты (после имитации связи с банком): awaiting → paid.
+  // Идемпотентно: для уже оплаченных заказов и оплаты при получении просто возвращаем заказ.
+  async confirmPayment(id: string, user: User) {
+    const order = await this.findById(id, user);
+    if (order.paymentStatus === 'awaiting') {
+      order.paymentStatus = 'paid';
+      return this.orderRepo.save(order);
+    }
+    return order;
   }
 }

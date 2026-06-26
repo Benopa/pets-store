@@ -3,7 +3,12 @@ import { User } from './user.entity';
 
 // Типы событий, о которых уведомляем. Расширяется по мере добавления новых сценариев
 // (избранное и т.д.).
-export type NotificationType = 'animal_approved' | 'animal_rejected' | 'order_placed';
+export type NotificationType =
+  | 'animal_approved'
+  | 'animal_rejected'
+  | 'order_placed'
+  | 'order_cancelled'
+  | 'order_shipped';
 
 @Entity({ name: 'notifications' })
 export class Notification {

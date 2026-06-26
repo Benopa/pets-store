@@ -3,6 +3,7 @@ import { Type } from 'class-transformer';
 import {
   ArrayMinSize,
   IsArray,
+  IsIn,
   IsOptional,
   IsNumber,
   IsString,
@@ -32,4 +33,9 @@ export class CreateOrderDto {
   @IsOptional()
   @IsString()
   address?: string;
+
+  @ApiProperty({ example: 'card', required: false, enum: ['card', 'sbp', 'cash'] })
+  @IsOptional()
+  @IsIn(['card', 'sbp', 'cash'])
+  paymentMethod?: 'card' | 'sbp' | 'cash';
 }

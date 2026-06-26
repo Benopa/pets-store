@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
+  App,
   Button,
   Divider,
   Empty,
@@ -14,14 +15,18 @@ import {
   Typography,
 } from 'antd';
 import {
+  CarOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
   EnvironmentOutlined,
   SearchOutlined,
+  SyncOutlined,
   UserOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 import { setCurrentAnimal } from '@/entities/animal';
+import { cancelSale, markShipped } from '@/entities/order';
 import { API_ORIGIN } from '@/shared/config';
 
 const { Text } = Typography;
@@ -30,7 +35,7 @@ const { Text } = Typography;
 const STATUS_META = {
   created: { label: 'Создан', color: 'default', icon: <ClockCircleOutlined /> },
   paid: { label: 'Оплачен', color: 'processing', icon: <ClockCircleOutlined /> },
-  shipped: { label: 'Отправлен', color: 'processing', icon: <ClockCircleOutlined /> },
+  shipped: { label: 'В доставке', color: 'processing', icon: <CarOutlined /> },
   delivered: { label: 'Получен', color: 'success', icon: <CheckCircleOutlined /> },
   cancelled: { label: 'Отменён', color: 'error', icon: <CloseCircleOutlined /> },
 };
@@ -41,20 +46,42 @@ const STATUS_OPTIONS = [
   ...Object.entries(STATUS_META).map(([value, meta]) => ({ value, label: meta.label })),
 ];
 
+// Статус оплаты заказа: онлайн-оплата (карта/СБП) подтверждается после «связи с банком»,
+// до этого — «ждём подтверждения»; наличные — «оплата при получении».
+const PAYMENT_META = {
+  paid: { label: 'Оплачено', color: 'success', icon: <CheckCircleOutlined /> },
+  awaiting: { label: 'Ждём подтверждения из банка', color: 'warning', icon: <SyncOutlined spin /> },
+  on_delivery: { label: 'Оплата при получении', color: 'default', icon: <WalletOutlined /> },
+};
+
 const buyerNameOf = (buyer) =>
   [buyer?.firstName, buyer?.lastName].filter(Boolean).join(' ') || buyer?.email || 'Покупатель';
 
 const lineSum = (it) => Number(it.price || 0) * (it.quantity || 1);
+
+// Причины отмены заказа продавцом. «Другое» — свободный текст в отдельном поле.
+const CANCEL_REASONS = [
+  'Закончился товар',
+  'Проблема с транспортировкой',
+  'Долгое ожидание оплаты',
+  'Другое',
+];
+
+// Передать в доставку и отменить заказ продавец может только до передачи в доставку —
+// для созданного/оплаченного заказа. После статуса «В доставке» отмена недоступна.
+const isShippable = (status) => status === 'created' || status === 'paid';
 
 // История проданных продавцом товаров (его карточки, которые уже купили).
 // Данные приходят с /api/orders/sales: позиции уже обогащены названием и ценой.
 export const SalesHistory = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const { message } = App.useApp();
   const { sales, salesLoading } = useSelector((state) => state.orders);
   const animals = useSelector((state) => state.animal.animals);
-  // Выбранная продажа для подробного просмотра (модальное окно).
-  const [detail, setDetail] = useState(null);
+  // Храним id выбранной продажи, сам объект берём из стора — чтобы модалка обновлялась
+  // после отмены (статус/причина приходят в стор и подхватываются здесь).
+  const [detailId, setDetailId] = useState(null);
   // Поиск по номеру (первые 8 символов) или полному id заказа + текущая страница.
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
@@ -62,6 +89,44 @@ export const SalesHistory = () => {
   const [sort, setSort] = useState('date');
   // Фильтр по статусу заказа: 'all' | created | paid | shipped | delivered | cancelled.
   const [status, setStatus] = useState('all');
+  // Отмена заказа: id отменяемой продажи + выбранная причина и текст для «Другое» + загрузка.
+  const [cancelId, setCancelId] = useState(null);
+  const [reason, setReason] = useState(CANCEL_REASONS[0]);
+  const [otherReason, setOtherReason] = useState('');
+  const [cancelling, setCancelling] = useState(false);
+  const [shipping, setShipping] = useState(false);
+
+  const detail = sales.find((s) => s.id === detailId) || null;
+
+  const handleShip = async () => {
+    setShipping(true);
+    const result = await dispatch(markShipped(detailId));
+    setShipping(false);
+    if (markShipped.fulfilled.match(result)) {
+      message.success('Заказ передан в доставку');
+    } else {
+      message.error(result.payload || 'Не удалось передать в доставку');
+    }
+  };
+
+  const handleCancelSale = async () => {
+    const finalReason = reason === 'Другое' ? otherReason.trim() : reason;
+    if (reason === 'Другое' && !finalReason) {
+      message.error('Опишите причину отмены');
+      return;
+    }
+    setCancelling(true);
+    const result = await dispatch(cancelSale({ orderId: cancelId, reason: finalReason }));
+    setCancelling(false);
+    if (cancelSale.fulfilled.match(result)) {
+      message.success('Заказ отменён, покупатель уведомлён');
+      setCancelId(null);
+      setReason(CANCEL_REASONS[0]);
+      setOtherReason('');
+    } else {
+      message.error(result.payload || 'Не удалось отменить заказ');
+    }
+  };
 
   if (salesLoading) {
     return <Skeleton active paragraph={{ rows: 4 }} />;
@@ -81,11 +146,14 @@ export const SalesHistory = () => {
   // Открыть карточку товара в каталоге.
   const openCard = (animal) => {
     dispatch(setCurrentAnimal(animal));
-    setDetail(null);
+    setDetailId(null);
     navigate('/');
   };
 
   const detailMeta = detail ? (STATUS_META[detail.status] ?? STATUS_META.created) : null;
+  const paymentMeta = detail
+    ? (PAYMENT_META[detail.paymentStatus] ?? PAYMENT_META.on_delivery)
+    : null;
   const anyCardAvailable = (detail?.items ?? []).some((it) => animalOf(it.itemId));
 
   // Фильтр по статусу + поиску. Короткий номер заказа — префикс полного id,
@@ -175,7 +243,12 @@ export const SalesHistory = () => {
                 <Text strong key="total" className="text-base">
                   {sale.total != null ? `${Number(sale.total)} ₽` : '—'}
                 </Text>,
-                <Button key="more" type="link" className="!px-0" onClick={() => setDetail(sale)}>
+                <Button
+                  key="more"
+                  type="link"
+                  className="!px-0"
+                  onClick={() => setDetailId(sale.id)}
+                >
                   Подробнее
                 </Button>,
               ]}
@@ -203,12 +276,32 @@ export const SalesHistory = () => {
 
       <Modal
         open={Boolean(detail)}
-        onCancel={() => setDetail(null)}
-        footer={[
-          <Button key="close" onClick={() => setDetail(null)}>
-            Закрыть
-          </Button>,
-        ]}
+        onCancel={() => setDetailId(null)}
+        footer={
+          detail
+            ? [
+                isShippable(detail.status) && (
+                  <Button
+                    key="ship"
+                    type="primary"
+                    icon={<CarOutlined />}
+                    loading={shipping}
+                    onClick={handleShip}
+                  >
+                    Передать в доставку
+                  </Button>
+                ),
+                isShippable(detail.status) && (
+                  <Button key="cancel" danger onClick={() => setCancelId(detail.id)}>
+                    Отменить заказ
+                  </Button>
+                ),
+                <Button key="close" onClick={() => setDetailId(null)}>
+                  Закрыть
+                </Button>,
+              ]
+            : null
+        }
         title={detail ? `Заказ №${String(detail.id).slice(0, 8)}` : ''}
         width={560}
       >
@@ -238,6 +331,22 @@ export const SalesHistory = () => {
                   {detailMeta.label}
                 </Tag>
               </div>
+              <div className="flex flex-col">
+                <Text type="secondary" className="text-xs">
+                  Оплата
+                </Text>
+                <Tag color={paymentMeta.color} icon={paymentMeta.icon} className="!mr-0 w-fit">
+                  {paymentMeta.label}
+                </Tag>
+              </div>
+              {detail.status === 'cancelled' && detail.cancelReason && (
+                <div className="flex flex-col">
+                  <Text type="secondary" className="text-xs">
+                    Причина отмены
+                  </Text>
+                  <Text>{detail.cancelReason}</Text>
+                </div>
+              )}
               <div className="flex flex-col min-w-[12rem] flex-1">
                 <Text type="secondary" className="text-xs">
                   Адрес доставки
@@ -313,6 +422,38 @@ export const SalesHistory = () => {
               </Text>
             </div>
           </div>
+        )}
+      </Modal>
+
+      <Modal
+        open={Boolean(cancelId)}
+        title="Отмена заказа"
+        okText="Отменить заказ"
+        okButtonProps={{ danger: true }}
+        cancelText="Назад"
+        confirmLoading={cancelling}
+        onCancel={() => setCancelId(null)}
+        onOk={handleCancelSale}
+      >
+        <Text type="secondary" className="block">
+          Выберите причину отмены — покупатель получит уведомление.
+        </Text>
+        <Select
+          className="!mt-3 w-full"
+          size="large"
+          value={reason}
+          onChange={setReason}
+          options={CANCEL_REASONS.map((r) => ({ value: r, label: r }))}
+        />
+        {reason === 'Другое' && (
+          <Input.TextArea
+            className="!mt-3"
+            rows={2}
+            maxLength={300}
+            placeholder="Опишите причину отмены"
+            value={otherReason}
+            onChange={(e) => setOtherReason(e.target.value)}
+          />
         )}
       </Modal>
     </>

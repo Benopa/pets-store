@@ -32,6 +32,7 @@ import {
 } from '@ant-design/icons';
 import { CATEGORY_COLOR } from '@/entities/animal';
 import { setCartQty, removeFromCart, clearCart, checkout } from '@/entities/cart';
+import { confirmOrderPayment } from '@/entities/order';
 import { updateProfile } from '@/entities/auth';
 import { API_ORIGIN } from '@/shared/config';
 
@@ -41,6 +42,9 @@ const DELIVERY_FEE = 300;
 const FREE_FROM = 500;
 // Сервисный сбор — 8% от суммы заказа (товаров), начисляется при оформлении.
 const SERVICE_FEE_RATE = 0.08;
+// Онлайн-оплата (карта/СБП): имитируем обращение к банку перед оформлением.
+const ONLINE_PAYMENTS = ['card', 'sbp'];
+const BANK_DELAY_MS = 5000;
 // Промокоды: код → доля скидки на всю стоимость заказа (товары + доставка + сбор).
 const PROMO_CODES = { PROMO50: 0.5 };
 
@@ -331,25 +335,41 @@ export const CartPage = () => {
       return;
     }
     setSubmitting(true);
+    // Создаём заказ. Онлайн-оплата (карта/СБП) создаётся в статусе «ждём подтверждения из банка».
     const result = await dispatch(
-      checkout({ selectedIds, total, comment: comment.trim(), address: address.trim() }),
+      checkout({
+        selectedIds,
+        total,
+        comment: comment.trim(),
+        address: address.trim(),
+        paymentMethod: payment,
+      }),
     );
-    setSubmitting(false);
-    if (checkout.fulfilled.match(result)) {
-      setCheckoutOpen(false);
-      // Запоминаем данные доставки в профиле для следующего заказа.
-      if (address.trim()) {
-        dispatch(updateProfile({ address: address.trim(), paymentMethod: payment }));
-      }
-      modal.success({
-        title: 'Заказ оформлен!',
-        content: `${itemCount} товар(ов) на сумму ${total.toFixed(1)} ₽. История покупок доступна в личном кабинете.`,
-        okText: 'К покупкам',
-        onOk: () => navigate('/'),
-      });
-    } else {
+    if (!checkout.fulfilled.match(result)) {
+      setSubmitting(false);
       message.error(result.payload || 'Не удалось оформить заказ');
+      return;
     }
+    // При оплате картой или через СБП имитируем связь с банком: 5 секунд «обработки»,
+    // затем подтверждаем оплату заказа (статус становится «Оплачено»).
+    if (ONLINE_PAYMENTS.includes(payment)) {
+      const hide = message.loading('Связь с банком…', 0);
+      await new Promise((resolve) => setTimeout(resolve, BANK_DELAY_MS));
+      hide();
+      await dispatch(confirmOrderPayment(result.payload.id));
+    }
+    setSubmitting(false);
+    setCheckoutOpen(false);
+    // Запоминаем данные доставки в профиле для следующего заказа.
+    if (address.trim()) {
+      dispatch(updateProfile({ address: address.trim(), paymentMethod: payment }));
+    }
+    modal.success({
+      title: 'Заказ оформлен!',
+      content: `${itemCount} товар(ов) на сумму ${total.toFixed(1)} ₽. История покупок доступна в личном кабинете.`,
+      okText: 'К покупкам',
+      onOk: () => navigate('/'),
+    });
   };
 
   if (lines.length === 0) {

@@ -16,12 +16,15 @@ import {
   Typography,
 } from 'antd';
 import {
+  CarOutlined,
   CheckCircleOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
   CloseOutlined,
   EnvironmentOutlined,
   SearchOutlined,
+  SyncOutlined,
+  WalletOutlined,
 } from '@ant-design/icons';
 import { setCurrentAnimal } from '@/entities/animal';
 import { cancelOrder, cancelOrderItem, markOrderReceived } from '@/entities/order';
@@ -33,9 +36,21 @@ const { Text } = Typography;
 const STATUS_META = {
   created: { label: 'Создан', color: 'default', icon: <ClockCircleOutlined /> },
   paid: { label: 'Оплачен', color: 'processing', icon: <ClockCircleOutlined /> },
-  shipped: { label: 'Отправлен', color: 'processing', icon: <ClockCircleOutlined /> },
+  shipped: { label: 'В доставке', color: 'processing', icon: <CarOutlined /> },
   delivered: { label: 'Получен', color: 'success', icon: <CheckCircleOutlined /> },
   cancelled: { label: 'Отменён', color: 'error', icon: <CloseCircleOutlined /> },
+};
+
+// Статус оплаты заказа: онлайн-оплата (карта/СБП) подтверждается после «связи с банком»,
+// до этого — «ждём подтверждения»; наличные — «оплата при получении».
+const PAYMENT_META = {
+  paid: { label: 'Оплачено', color: 'success', icon: <CheckCircleOutlined /> },
+  awaiting: {
+    label: 'Ждём подтверждения из банка',
+    color: 'warning',
+    icon: <SyncOutlined spin />,
+  },
+  on_delivery: { label: 'Оплата при получении', color: 'default', icon: <WalletOutlined /> },
 };
 
 // Опции фильтра по статусу: «Все» + статусы из STATUS_META (метки держим в одном месте).
@@ -147,6 +162,9 @@ export const PurchaseHistory = () => {
   };
 
   const detailMeta = detail ? (STATUS_META[detail.status] ?? STATUS_META.created) : null;
+  const paymentMeta = detail
+    ? (PAYMENT_META[detail.paymentStatus] ?? PAYMENT_META.on_delivery)
+    : null;
   const detailNote = detail?.items?.find((it) => it.note)?.note;
   const anyCardAvailable = (detail?.items ?? []).some((it) => animalOf(it.itemId));
   const detailCancellable = detail ? isCancellable(detail.status) : false;
@@ -280,8 +298,8 @@ export const PurchaseHistory = () => {
         footer={
           detail
             ? [
-                detailCancellable && (
-                  <Button key="received" onClick={handleReceived}>
+                detail.status === 'shipped' && (
+                  <Button key="received" type="primary" onClick={handleReceived}>
                     Подтвердить получение
                   </Button>
                 ),
@@ -314,6 +332,22 @@ export const PurchaseHistory = () => {
                   {detailMeta.label}
                 </Tag>
               </div>
+              <div className="flex flex-col">
+                <Text type="secondary" className="text-xs">
+                  Оплата
+                </Text>
+                <Tag color={paymentMeta.color} icon={paymentMeta.icon} className="!mr-0 w-fit">
+                  {paymentMeta.label}
+                </Tag>
+              </div>
+              {detail.status === 'cancelled' && detail.cancelReason && (
+                <div className="flex flex-col">
+                  <Text type="secondary" className="text-xs">
+                    Причина отмены
+                  </Text>
+                  <Text>{detail.cancelReason}</Text>
+                </div>
+              )}
               <div className="flex flex-col min-w-[12rem] flex-1">
                 <Text type="secondary" className="text-xs">
                   Адрес доставки

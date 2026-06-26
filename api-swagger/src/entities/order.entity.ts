@@ -4,6 +4,15 @@ import { User } from './user.entity';
 // delivered — заказ получен покупателем (терминальный статус, отмена больше недоступна).
 export type OrderStatus = 'created' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
 
+// Способ оплаты, выбранный при оформлении.
+export type PaymentMethod = 'card' | 'sbp' | 'cash';
+
+// Статус оплаты заказа:
+//   paid        — оплачено онлайн (карта/СБП), банк подтвердил;
+//   awaiting    — ждём подтверждения из банка (онлайн-оплата ещё не подтверждена);
+//   on_delivery — оплата при получении (наличные/курьер).
+export type PaymentStatus = 'paid' | 'awaiting' | 'on_delivery';
+
 export interface OrderItem {
   type: 'pet' | 'food';
   itemId: string;
@@ -31,6 +40,18 @@ export class Order {
   // Адрес доставки заказа (как указал покупатель при оформлении).
   @Column({ type: 'varchar', nullable: true })
   address?: string;
+
+  // Способ оплаты, выбранный при оформлении (card | sbp | cash).
+  @Column({ type: 'varchar', nullable: true })
+  paymentMethod?: PaymentMethod;
+
+  // Статус оплаты: paid | awaiting | on_delivery (по умолчанию — оплата при получении).
+  @Column({ type: 'varchar', default: 'on_delivery' })
+  paymentStatus!: PaymentStatus;
+
+  // Причина отмены заказа (заполняется при отмене продавцом, видна покупателю).
+  @Column({ type: 'varchar', nullable: true })
+  cancelReason?: string | null;
 
   @CreateDateColumn()
   createdAt!: Date;

@@ -18,6 +18,23 @@ export const fetchOrders = createAsyncThunk(
   },
 );
 
+// Сводка по комиссии сайта (только для админа): сколько магазин заработал на комиссии.
+export const fetchCommission = createAsyncThunk(
+  'orders/fetchCommission',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const apiKey = getState().auth?.apiKey;
+      const response = await axios.get('/api/orders/commission', {
+        headers: apiKey ? { 'x-api-key': apiKey } : {},
+      });
+      return response.data;
+    } catch (err) {
+      const message = err.response?.data?.message;
+      return rejectWithValue(Array.isArray(message) ? message.join(', ') : message || err.message);
+    }
+  },
+);
+
 // История продаж продавца: заказы, содержащие его товары (которые уже купили).
 export const fetchSales = createAsyncThunk(
   'orders/fetchSales',
@@ -65,4 +82,37 @@ export const markOrderReceived = createAsyncThunk(
   'orders/markOrderReceived',
   (orderId, { getState, rejectWithValue }) =>
     patchOrder(`/api/orders/${orderId}/received`, getState, rejectWithValue),
+);
+
+// Подтверждение онлайн-оплаты заказа (после имитации связи с банком): awaiting → paid.
+export const confirmOrderPayment = createAsyncThunk(
+  'orders/confirmOrderPayment',
+  (orderId, { getState, rejectWithValue }) =>
+    patchOrder(`/api/orders/${orderId}/pay`, getState, rejectWithValue),
+);
+
+// Передача заказа в доставку продавцом (статус → shipped).
+export const markShipped = createAsyncThunk(
+  'orders/markShipped',
+  (orderId, { getState, rejectWithValue }) =>
+    patchOrder(`/api/orders/${orderId}/ship`, getState, rejectWithValue),
+);
+
+// Отмена заказа продавцом с указанием причины (для заказов, содержащих его товар).
+export const cancelSale = createAsyncThunk(
+  'orders/cancelSale',
+  async ({ orderId, reason }, { getState, rejectWithValue }) => {
+    try {
+      const apiKey = getState().auth?.apiKey;
+      const response = await axios.patch(
+        `/api/orders/${orderId}/cancel-sale`,
+        { reason },
+        { headers: apiKey ? { 'x-api-key': apiKey } : {} },
+      );
+      return response.data;
+    } catch (err) {
+      const message = err.response?.data?.message;
+      return rejectWithValue(Array.isArray(message) ? message.join(', ') : message || err.message);
+    }
+  },
 );

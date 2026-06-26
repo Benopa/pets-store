@@ -3,9 +3,13 @@ import { logout } from '@/entities/auth';
 import {
   fetchOrders,
   fetchSales,
+  fetchCommission,
   cancelOrder,
   cancelOrderItem,
   markOrderReceived,
+  confirmOrderPayment,
+  markShipped,
+  cancelSale,
 } from './orders.thunk';
 
 // Заменяет заказ в списке покупок свежей версией (после отмены/получения).
@@ -20,6 +24,7 @@ const ordersSlice = createSlice({
   initialState: {
     items: [],
     sales: [],
+    commission: 0,
     loading: false,
     salesLoading: false,
     error: null,
@@ -50,6 +55,10 @@ const ordersSlice = createSlice({
       state.salesLoading = false;
       state.error = action.payload ?? action.error.message;
     });
+    // Комиссия магазина (для админа): { commission }.
+    builder.addCase(fetchCommission.fulfilled, (state, action) => {
+      state.commission = Number(action.payload?.commission ?? 0);
+    });
     // Отмена/получение возвращают обновлённый заказ — синхронизируем список покупок.
     builder.addCase(cancelOrder.fulfilled, (state, action) => {
       replaceOrder(state, action.payload);
@@ -60,9 +69,33 @@ const ordersSlice = createSlice({
     builder.addCase(markOrderReceived.fulfilled, (state, action) => {
       replaceOrder(state, action.payload);
     });
+    // Подтверждение онлайн-оплаты возвращает заказ со статусом paid — обновляем список.
+    builder.addCase(confirmOrderPayment.fulfilled, (state, action) => {
+      replaceOrder(state, action.payload);
+    });
+    // Передача в доставку возвращает сырой заказ — обновляем статус продажи на месте,
+    // сохраняя обогащённые поля (товары/покупатель) исходной записи продажи.
+    builder.addCase(markShipped.fulfilled, (state, action) => {
+      const order = action.payload;
+      if (!order) return;
+      const sale = state.sales.find((s) => s.id === order.id);
+      if (sale) sale.status = order.status;
+    });
+    // Отмена продавцом возвращает сырой заказ — обновляем статус и причину в продаже,
+    // сохраняя обогащённые поля (товары/покупатель) исходной записи продажи.
+    builder.addCase(cancelSale.fulfilled, (state, action) => {
+      const order = action.payload;
+      if (!order) return;
+      const sale = state.sales.find((s) => s.id === order.id);
+      if (sale) {
+        sale.status = order.status;
+        sale.cancelReason = order.cancelReason ?? null;
+      }
+    });
     builder.addCase(logout, (state) => {
       state.items = [];
       state.sales = [];
+      state.commission = 0;
       state.error = null;
     });
   },

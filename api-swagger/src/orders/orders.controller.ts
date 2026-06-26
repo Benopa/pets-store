@@ -4,6 +4,7 @@ import { ApiSecurity, ApiTags } from '@nestjs/swagger';
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
+import { CancelOrderDto } from './dto/cancel-order.dto';
 import { ApiKeyGuard } from '../common/guards/api-key.guard';
 import { User } from '../entities/user.entity';
 
@@ -31,6 +32,12 @@ export class OrdersController {
     return this.ordersService.findSales(req.user as User);
   }
 
+  // Сводка по комиссии сайта (только админ). До ':id', чтобы путь не приняли за id заказа.
+  @Get('commission')
+  commissionSummary(@Request() req: { user: { id: string } }) {
+    return this.ordersService.commissionSummary(req.user as User);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @Request() req: { user: { id: string } }) {
     return this.ordersService.findById(id, req.user as User);
@@ -47,6 +54,22 @@ export class OrdersController {
     return this.ordersService.cancel(id, req.user as User);
   }
 
+  // Передача заказа в доставку продавцом (для заказов с его товаром): статус → shipped.
+  @Patch(':id/ship')
+  markShipped(@Param('id') id: string, @Request() req: { user: { id: string } }) {
+    return this.ordersService.markShipped(id, req.user as User);
+  }
+
+  // Отмена заказа продавцом с указанием причины (для заказов с его товаром).
+  @Patch(':id/cancel-sale')
+  cancelSale(
+    @Param('id') id: string,
+    @Body() dto: CancelOrderDto,
+    @Request() req: { user: { id: string } },
+  ) {
+    return this.ordersService.cancelBySeller(id, dto.reason, req.user as User);
+  }
+
   // Отмена одной позиции заказа.
   @Patch(':id/items/:itemId/cancel')
   cancelItem(
@@ -61,5 +84,11 @@ export class OrdersController {
   @Patch(':id/received')
   markReceived(@Param('id') id: string, @Request() req: { user: { id: string } }) {
     return this.ordersService.markReceived(id, req.user as User);
+  }
+
+  // Подтверждение онлайн-оплаты заказа (имитация ответа банка): awaiting → paid.
+  @Patch(':id/pay')
+  confirmPayment(@Param('id') id: string, @Request() req: { user: { id: string } }) {
+    return this.ordersService.confirmPayment(id, req.user as User);
   }
 }
