@@ -38,6 +38,13 @@ export class OrdersController {
     return this.ordersService.commissionSummary(req.user as User);
   }
 
+  // Детализация зачислений сайту (только админ): для раздела «Прибыль» с фильтрами.
+  // До ':id', иначе 'commission' будет принят за id заказа.
+  @Get('commission/details')
+  commissionDetails(@Request() req: { user: { id: string } }) {
+    return this.ordersService.commissionDetails(req.user as User);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @Request() req: { user: { id: string } }) {
     return this.ordersService.findById(id, req.user as User);

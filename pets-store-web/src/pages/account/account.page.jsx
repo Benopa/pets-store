@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
@@ -29,6 +29,7 @@ import {
   ShopOutlined,
   TeamOutlined,
   ArrowLeftOutlined,
+  ArrowRightOutlined,
 } from '@ant-design/icons';
 import { fetchMe, updateProfile, changePassword } from '@/entities/auth';
 import { fetchOrders, fetchSales, fetchCommission } from '@/entities/order';
@@ -40,6 +41,7 @@ import { SalesHistory } from './components/sales-history';
 import { ProductsManager } from './components/products-manager';
 import { ModeratorsManager } from './components/moderators-manager';
 import { StoresManager } from './components/stores-manager';
+import { ProfitModal } from './components/profit-modal';
 
 const { Title, Text } = Typography;
 
@@ -55,6 +57,7 @@ export const AccountPage = () => {
   const dispatch = useDispatch();
   const { message } = App.useApp();
   const [passwordForm] = Form.useForm();
+  const [profitOpen, setProfitOpen] = useState(false);
 
   const { email, firstName, lastName, role, avatar, apiKey, loading, changingPassword } =
     useSelector((state) => state.auth);
@@ -294,20 +297,28 @@ export const AccountPage = () => {
               </>
             )}
 
-            {/* Админу — заработок магазина на комиссии (в выручку продавцов не входит). */}
+            {/* Админу — выручка магазина (комиссия сайта). Клик открывает раздел «Прибыль»
+                с детализацией зачислений и фильтрами по периоду/магазину/продавцу. */}
             {isAdmin && (
               <>
                 <Divider className="!my-5" />
-                <Row gutter={16}>
-                  <Col span={24}>
+                <button
+                  type="button"
+                  onClick={() => setProfitOpen(true)}
+                  className="group block w-full rounded-xl border border-stone-200 px-5 py-4 text-left transition-colors hover:border-[#9850fd] hover:bg-stone-50"
+                >
+                  <div className="flex items-center justify-between gap-4">
                     <Statistic
-                      title="Комиссия магазина (накоплено)"
+                      title="Выручка"
                       value={commission}
                       suffix="₽"
                       prefix={<ShopOutlined className="text-stone-400" />}
                     />
-                  </Col>
-                </Row>
+                    <span className="whitespace-nowrap text-sm text-stone-400 transition-colors group-hover:text-[#9850fd]">
+                      Прибыль <ArrowRightOutlined />
+                    </span>
+                  </div>
+                </button>
               </>
             )}
           </>
@@ -393,6 +404,8 @@ export const AccountPage = () => {
           },
         ].filter(Boolean)}
       />
+
+      {isAdmin && <ProfitModal open={profitOpen} onClose={() => setProfitOpen(false)} />}
     </div>
   );
 };

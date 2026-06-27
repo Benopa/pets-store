@@ -4,6 +4,7 @@ import {
   fetchOrders,
   fetchSales,
   fetchCommission,
+  fetchCommissionDetails,
   cancelOrder,
   cancelOrderItem,
   markOrderReceived,
@@ -25,6 +26,8 @@ const ordersSlice = createSlice({
     items: [],
     sales: [],
     commission: 0,
+    commissionDetails: [],
+    commissionDetailsLoading: false,
     loading: false,
     salesLoading: false,
     error: null,
@@ -58,6 +61,20 @@ const ordersSlice = createSlice({
     // Комиссия магазина (для админа): { commission }.
     builder.addCase(fetchCommission.fulfilled, (state, action) => {
       state.commission = Number(action.payload?.commission ?? 0);
+    });
+    // Детализация зачислений (для админа): { total, items }.
+    builder.addCase(fetchCommissionDetails.pending, (state) => {
+      state.commissionDetailsLoading = true;
+      state.error = null;
+    });
+    builder.addCase(fetchCommissionDetails.fulfilled, (state, action) => {
+      state.commissionDetails = Array.isArray(action.payload?.items) ? action.payload.items : [];
+      state.commission = Number(action.payload?.total ?? state.commission);
+      state.commissionDetailsLoading = false;
+    });
+    builder.addCase(fetchCommissionDetails.rejected, (state, action) => {
+      state.commissionDetailsLoading = false;
+      state.error = action.payload ?? action.error.message;
     });
     // Отмена/получение возвращают обновлённый заказ — синхронизируем список покупок.
     builder.addCase(cancelOrder.fulfilled, (state, action) => {
@@ -96,6 +113,7 @@ const ordersSlice = createSlice({
       state.items = [];
       state.sales = [];
       state.commission = 0;
+      state.commissionDetails = [];
       state.error = null;
     });
   },

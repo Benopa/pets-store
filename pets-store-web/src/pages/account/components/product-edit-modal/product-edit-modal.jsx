@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
 import { App, Form, Input, InputNumber, Modal, Select, Spin, Tooltip, Upload } from 'antd';
 import { PlusOutlined, DeleteOutlined, StarOutlined, LoadingOutlined } from '@ant-design/icons';
@@ -11,6 +11,7 @@ import {
   deleteAnimalImage,
   setAnimalCover,
 } from '@/entities/animal';
+import { fetchShops } from '@/entities/shop';
 import { API_ORIGIN } from '@/shared/config';
 
 // Один элемент сетки фото: обложка-бейдж + действия (обложка/удалить) по ховеру.
@@ -56,8 +57,23 @@ const ProductEditModalInner = ({ animal, onClose }) => {
   const { message } = App.useApp();
   const categories = useSelector((state) => state.animal.categories);
   const role = useSelector((state) => state.auth.role);
+  const userId = useSelector((state) => state.auth.userId);
+  const shops = useSelector((state) => state.shops.items);
+  const isAdmin = role === 'admin';
   const [form] = Form.useForm();
   const isEdit = Boolean(animal);
+
+  // Магазин обязателен для товаров сайта: новый товар админа или его собственный товар.
+  // Чужие товары продавцов админ может модерировать, но не обязан переселять в магазин.
+  const isShopProduct =
+    isAdmin && (!isEdit || animal?.owner?.id === userId || animal?.owner?.role === 'admin');
+
+  // Список магазинов нужен для привязки товара к магазину; подгружаем, если ещё нет.
+  useEffect(() => {
+    if (isShopProduct && shops.length === 0) {
+      dispatch(fetchShops());
+    }
+  }, [dispatch, isShopProduct, shops.length]);
 
   // Ставка комиссии товара: при редактировании — сохранённая в карточке, при создании —
   // зависит от роли (комиссия начисляется только продавцам).
@@ -86,6 +102,7 @@ const ProductEditModalInner = ({ animal, onClose }) => {
     ageMonths: animal?.ageMonths ?? null,
     price: basePriceOf(animal),
     stock: animal?.stock ?? 1,
+    shopId: animal?.shop?.id ?? undefined,
   };
 
   // Живой предпросмотр цены в каталоге (с комиссией) по мере ввода базовой цены.
@@ -153,6 +170,10 @@ const ProductEditModalInner = ({ animal, onClose }) => {
       price: vals.price ?? undefined,
       stock: vals.stock ?? undefined,
     };
+    // Привязку к магазину задаём только для товаров сайта (товары магазинов админа).
+    if (isShopProduct) {
+      data.shopId = vals.shopId ?? null;
+    }
     setSaving(true);
     // В edit-режиме фото уже сохранены на сервере, передаём только поля.
     const result = isEdit
@@ -273,6 +294,32 @@ const ProductEditModalInner = ({ animal, onClose }) => {
             />
           </Form.Item>
         </div>
+
+        {isShopProduct && (
+          <Form.Item
+            name="shopId"
+            label="Магазин"
+            rules={[{ required: true, message: 'Выберите магазин для товара' }]}
+            extra={
+              shops.length === 0 ? (
+                <span className="text-xs text-amber-600">
+                  Сначала добавьте магазин во вкладке «Магазины»
+                </span>
+              ) : (
+                <span className="text-xs text-stone-500">
+                  Товар принадлежит магазину — он продаёт его онлайн (доставка). Сервисный сбор
+                  сайта берётся при оформлении заказа.
+                </span>
+              )
+            }
+          >
+            <Select
+              size="large"
+              placeholder="Выберите магазин"
+              options={shops.map((s) => ({ value: s.id, label: s.name }))}
+            />
+          </Form.Item>
+        )}
 
         <Form.Item name="species" label="Порода / вид">
           <Input size="large" placeholder="cat, dog, labrador…" />

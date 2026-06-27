@@ -1,10 +1,16 @@
-import { ForbiddenException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  ForbiddenException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
 import { Animal } from '../entities/animal.entity';
 import { AnimalImage } from '../entities/animal-image.entity';
 import { Category } from '../entities/category.entity';
+import { Shop } from '../entities/shop.entity';
 import { User } from '../entities/user.entity';
 import { CreateAnimalDto } from './dto/create-animal.dto';
 import { UpdateAnimalDto } from './dto/update-animal.dto';
@@ -28,8 +34,22 @@ export class AnimalsService {
     private readonly userRepo: Repository<User>,
     @InjectRepository(AnimalImage)
     private readonly imageRepo: Repository<AnimalImage>,
+    @InjectRepository(Shop)
+    private readonly shopRepo: Repository<Shop>,
     private readonly notificationsService: NotificationsService,
   ) {}
+
+  // Находит магазин по id (для привязки товара). Пустая строка/null → товар без магазина.
+  private async resolveShop(shopId: string | null | undefined): Promise<Shop | null> {
+    if (!shopId) {
+      return null;
+    }
+    const shop = await this.shopRepo.findOne({ where: { id: shopId } });
+    if (!shop) {
+      throw new NotFoundException('Shop not found');
+    }
+    return shop;
+  }
 
   async create(dto: CreateAnimalDto, userId: string) {
     const category = await this.categoryRepo.findOne({ where: { id: dto.categoryId } });
@@ -45,6 +65,11 @@ export class AnimalsService {
     // Комиссия сайта начисляется только на товары продавцов. Продавец указывает свою (базовую)
     // цену в dto.price; покупательская price уже включает комиссию.
     const commissionRate = owner.role === 'seller' ? SELLER_COMMISSION_RATE : 0;
+    const shop = await this.resolveShop(dto.shopId);
+    // Администратор добавляет товары только в магазин (не «на себя») — магазин обязателен.
+    if (owner.role === 'admin' && !shop) {
+      throw new BadRequestException('Укажите магазин, в котором находится товар');
+    }
     const animal = this.animalRepo.create({
       name: dto.name,
       species: dto.species,
@@ -60,6 +85,7 @@ export class AnimalsService {
       moderationStatus,
       category,
       owner,
+      shop,
     });
     return this.animalRepo.save(animal);
   }
@@ -82,6 +108,7 @@ export class AnimalsService {
     const qb = this.animalRepo.createQueryBuilder('animal')
       .leftJoinAndSelect('animal.category', 'category')
       .leftJoinAndSelect('animal.owner', 'owner')
+      .leftJoinAndSelect('animal.shop', 'shop')
       .leftJoinAndSelect('animal.images', 'images');
 
     if (query.categoryId) {
@@ -184,6 +211,10 @@ export class AnimalsService {
         throw new NotFoundException('Category not found');
       }
       animal.category = category;
+    }
+    // Привязка/отвязка магазина: shopId передан (включая null — отвязать).
+    if (dto.shopId !== undefined) {
+      animal.shop = await this.resolveShop(dto.shopId);
     }
     // Любое редактирование карточки продавцом возвращает её на модерацию;
     // админ и модератор сохраняют изменения без повторной проверки.

@@ -8,6 +8,7 @@ import {
   ReloadOutlined,
   ExclamationCircleOutlined,
   SearchOutlined,
+  ShopOutlined,
 } from '@ant-design/icons';
 import { CATEGORY_COLOR, MODERATION_STATUS, deleteAnimal, resubmitAnimal } from '@/entities/animal';
 import { API_ORIGIN } from '@/shared/config';
@@ -178,6 +179,11 @@ export const ProductsManager = () => {
                     )}
                     {isAdmin && animal.owner && animal.owner.id !== userId && (
                       <Tag className="!mr-0">{ownerLabel(animal.owner)}</Tag>
+                    )}
+                    {isAdmin && animal.shop && (
+                      <Tag color="purple" className="!mr-0" icon={<ShopOutlined />}>
+                        {animal.shop.name}
+                      </Tag>
                     )}
                   </div>
                 }

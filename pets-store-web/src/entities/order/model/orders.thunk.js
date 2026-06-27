@@ -35,6 +35,24 @@ export const fetchCommission = createAsyncThunk(
   },
 );
 
+// Детализация зачислений сайту (только для админа): список поступлений с датой, товаром,
+// продавцом и магазином. Используется в разделе «Прибыль» с фильтрами по периоду/магазину/продавцу.
+export const fetchCommissionDetails = createAsyncThunk(
+  'orders/fetchCommissionDetails',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const apiKey = getState().auth?.apiKey;
+      const response = await axios.get('/api/orders/commission/details', {
+        headers: apiKey ? { 'x-api-key': apiKey } : {},
+      });
+      return response.data;
+    } catch (err) {
+      const message = err.response?.data?.message;
+      return rejectWithValue(Array.isArray(message) ? message.join(', ') : message || err.message);
+    }
+  },
+);
+
 // История продаж продавца: заказы, содержащие его товары (которые уже купили).
 export const fetchSales = createAsyncThunk(
   'orders/fetchSales',

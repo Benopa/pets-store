@@ -60,4 +60,13 @@ export class UpdateAnimalDto {
   @IsOptional()
   @IsString()
   categoryId?: string;
+
+  @ApiProperty({
+    example: 'a1b2c3d4-0000-0000-0000-000000000000',
+    required: false,
+    description: 'Магазин товара (id справочника). null — отвязать товар от магазина.',
+  })
+  @IsOptional()
+  @IsString()
+  shopId?: string | null;
 }

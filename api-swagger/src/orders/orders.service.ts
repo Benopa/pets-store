@@ -14,6 +14,10 @@ import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { NotificationsService } from '../notifications/notifications.service';
 
+// Сервисный сбор сайта на товары магазинов (8%): у таких товаров комиссия в цену не зашита,
+// выручку сайт получает сервисным сбором при оформлении заказа. Совпадает со ставкой на фронте.
+const SERVICE_FEE_RATE = 0.08;
+
 @Injectable()
 export class OrdersService {
   constructor(
@@ -170,18 +174,27 @@ export class OrdersService {
       }));
   }
 
-  // Сводка по комиссии сайта (только для администратора): сколько магазин заработал на комиссии.
-  // Комиссия по позиции = (покупательская цена − базовая) × количество. Отменённые заказы не в счёт.
-  async commissionSummary(user: User) {
-    if (user.role !== 'admin') {
-      throw new ForbiddenException('Доступно только администратору');
-    }
+  // Зачисления сайту (только админ): по каждой проданной позиции — отдельная запись.
+  //  • товар продавца (без магазина) → комиссия = (покупательская цена − базовая) × кол-во;
+  //  • товар магазина → сервисный сбор = цена × кол-во × ставка сбора (наценки в цене нет).
+  // Отменённые заказы не учитываются. Общий источник и для сводки, и для детализации.
+  private async buildAccruals() {
     const [orders, animals] = await Promise.all([
-      this.orderRepo.find(),
+      this.orderRepo.find({ order: { createdAt: 'DESC' } }),
       this.animalRepo.find(),
     ]);
     const byId = new Map(animals.map((animal) => [animal.id, animal] as [string, Animal]));
-    let commission = 0;
+    const rows: Array<{
+      orderId: string;
+      date: Date;
+      animalId: string;
+      animalName: string;
+      quantity: number;
+      type: 'commission' | 'service';
+      amount: number;
+      seller: { id: string; name: string | null; email: string | null } | null;
+      shop: { id: string; name: string } | null;
+    }> = [];
     for (const order of orders) {
       if (order.status === 'cancelled') {
         continue;
@@ -194,11 +207,74 @@ export class OrdersService {
         if (!animal) {
           continue;
         }
-        const per = Number(animal.price ?? 0) - Number(animal.basePrice ?? 0);
-        commission += per * (item.quantity || 1);
+        const quantity = item.quantity || 1;
+        if (animal.shop) {
+          // Товар магазина: выручка сайта — сервисный сбор (комиссии в цене нет).
+          const amount =
+            Math.round(Number(animal.price ?? 0) * quantity * SERVICE_FEE_RATE * 100) / 100;
+          if (amount <= 0) {
+            continue;
+          }
+          rows.push({
+            orderId: order.id,
+            date: order.createdAt,
+            animalId: animal.id,
+            animalName: animal.name,
+            quantity,
+            type: 'service',
+            amount,
+            seller: null,
+            shop: { id: animal.shop.id, name: animal.shop.name },
+          });
+        } else {
+          // Товар продавца: выручка сайта — зашитая комиссия.
+          const per = Number(animal.price ?? 0) - Number(animal.basePrice ?? 0);
+          if (per <= 0) {
+            continue;
+          }
+          const owner = animal.owner;
+          rows.push({
+            orderId: order.id,
+            date: order.createdAt,
+            animalId: animal.id,
+            animalName: animal.name,
+            quantity,
+            type: 'commission',
+            amount: Math.round(per * quantity * 100) / 100,
+            seller: owner
+              ? {
+                  id: owner.id,
+                  name: [owner.firstName, owner.lastName].filter(Boolean).join(' ') || null,
+                  email: owner.email ?? null,
+                }
+              : null,
+            shop: null,
+          });
+        }
       }
     }
-    return { commission: Math.round(commission * 100) / 100 };
+    return rows;
+  }
+
+  // Сводка по выручке сайта (только админ): сумма всех зачислений (комиссии + сервисные сборы).
+  async commissionSummary(user: User) {
+    if (user.role !== 'admin') {
+      throw new ForbiddenException('Доступно только администратору');
+    }
+    const rows = await this.buildAccruals();
+    const commission = Math.round(rows.reduce((sum, row) => sum + row.amount, 0) * 100) / 100;
+    return { commission };
+  }
+
+  // Детализация зачислений сайту (только админ) для раздела «Прибыль»
+  // с фильтрами по периоду / магазину / продавцу.
+  async commissionDetails(user: User) {
+    if (user.role !== 'admin') {
+      throw new ForbiddenException('Доступно только администратору');
+    }
+    const items = await this.buildAccruals();
+    const total = Math.round(items.reduce((sum, row) => sum + row.amount, 0) * 100) / 100;
+    return { total, items };
   }
 
   async findById(id: string, user: User) {

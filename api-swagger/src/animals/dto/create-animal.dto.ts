@@ -58,4 +58,13 @@ export class CreateAnimalDto {
   @ApiProperty({ example: 'e3b2c5a8-4f2d-4b9f-9b5d-6e1d8b0b9c5a' })
   @IsString()
   categoryId!: string;
+
+  @ApiProperty({
+    example: 'a1b2c3d4-0000-0000-0000-000000000000',
+    required: false,
+    description: 'Магазин, которому принадлежит товар (id из справочника магазинов).',
+  })
+  @IsOptional()
+  @IsString()
+  shopId?: string | null;
 }

@@ -40,7 +40,7 @@ const { Title, Text } = Typography;
 
 const DELIVERY_FEE = 300;
 const FREE_FROM = 500;
-// Сервисный сбор — 8% от суммы заказа (товаров), начисляется при оформлении.
+// Сервисный сбор — 8%, берётся только с товаров магазинов (у товаров продавцов комиссия уже в цене).
 const SERVICE_FEE_RATE = 0.08;
 // Онлайн-оплата (карта/СБП): имитируем обращение к банку перед оформлением.
 const ONLINE_PAYMENTS = ['card', 'sbp'];
@@ -279,8 +279,12 @@ export const CartPage = () => {
   const subtotal = selectedLines.reduce((s, l) => s + Number(l.animal.price) * l.qty, 0);
   const itemCount = selectedLines.reduce((s, l) => s + l.qty, 0);
   const delivery = subtotal >= FREE_FROM || subtotal === 0 ? 0 : DELIVERY_FEE;
-  // Сервисный сбор 8% от суммы заказа (товаров), округляем вниз до целых рублей.
-  const serviceFee = Math.floor(subtotal * SERVICE_FEE_RATE);
+  // Сервисный сбор 8% берётся только с товаров магазинов (у товаров продавцов комиссия уже в цене),
+  // округляем вниз до целых рублей.
+  const shopSubtotal = selectedLines
+    .filter((l) => l.animal.shop)
+    .reduce((s, l) => s + Number(l.animal.price) * l.qty, 0);
+  const serviceFee = Math.floor(shopSubtotal * SERVICE_FEE_RATE);
   const grossTotal = subtotal + delivery + serviceFee;
 
   // Удаляются только выбранные, если выбрана часть корзины — иначе чистим всё.

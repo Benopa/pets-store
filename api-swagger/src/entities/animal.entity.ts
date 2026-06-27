@@ -2,6 +2,7 @@ import { Column, CreateDateColumn, Entity, ManyToOne, OneToMany, PrimaryGenerate
 import { Category } from './category.entity';
 import { User } from './user.entity';
 import { AnimalImage } from './animal-image.entity';
+import { Shop } from './shop.entity';
 
 @Entity({ name: 'animals' })
 export class Animal {
@@ -61,6 +62,11 @@ export class Animal {
 
   @ManyToOne(() => User, (user) => user.animals, { eager: true })
   owner!: User;
+
+  // Магазин, которому принадлежит товар (товаром торгует магазин — онлайн через доставку,
+  // офлайн добавим позже). Заполняется администратором; null — товар без привязки к магазину.
+  @ManyToOne(() => Shop, { eager: true, nullable: true, onDelete: 'SET NULL' })
+  shop?: Shop | null;
 
   @OneToMany(() => AnimalImage, (image) => image.animal, { cascade: true, eager: true })
   images!: AnimalImage[];
