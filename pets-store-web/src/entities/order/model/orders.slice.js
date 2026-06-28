@@ -5,11 +5,14 @@ import {
   fetchSales,
   fetchCommission,
   fetchCommissionDetails,
+  fetchDeliveries,
   cancelOrder,
   cancelOrderItem,
   markOrderReceived,
   confirmOrderPayment,
+  markReady,
   markShipped,
+  markDelivered,
   cancelSale,
 } from './orders.thunk';
 
@@ -25,6 +28,8 @@ const ordersSlice = createSlice({
   initialState: {
     items: [],
     sales: [],
+    deliveries: [],
+    deliveriesLoading: false,
     commission: 0,
     commissionDetails: [],
     commissionDetailsLoading: false,
@@ -58,6 +63,26 @@ const ordersSlice = createSlice({
       state.salesLoading = false;
       state.error = action.payload ?? action.error.message;
     });
+    // Заказы доставщика (роль courier): { id, status, address, buyer, items, ... }.
+    builder.addCase(fetchDeliveries.pending, (state) => {
+      state.deliveriesLoading = true;
+      state.error = null;
+    });
+    builder.addCase(fetchDeliveries.fulfilled, (state, action) => {
+      state.deliveries = Array.isArray(action.payload) ? action.payload : [];
+      state.deliveriesLoading = false;
+    });
+    builder.addCase(fetchDeliveries.rejected, (state, action) => {
+      state.deliveriesLoading = false;
+      state.error = action.payload ?? action.error.message;
+    });
+    // Отметка «передан покупателю» возвращает сырой заказ — обновляем статус в списке доставок.
+    builder.addCase(markDelivered.fulfilled, (state, action) => {
+      const order = action.payload;
+      if (!order) return;
+      const delivery = state.deliveries.find((d) => d.id === order.id);
+      if (delivery) delivery.status = order.status;
+    });
     // Комиссия магазина (для админа): { commission }.
     builder.addCase(fetchCommission.fulfilled, (state, action) => {
       state.commission = Number(action.payload?.commission ?? 0);
@@ -90,6 +115,14 @@ const ordersSlice = createSlice({
     builder.addCase(confirmOrderPayment.fulfilled, (state, action) => {
       replaceOrder(state, action.payload);
     });
+    // «Готов к отправке» возвращает сырой заказ — обновляем статус продажи на месте,
+    // сохраняя обогащённые поля (товары/покупатель) исходной записи продажи.
+    builder.addCase(markReady.fulfilled, (state, action) => {
+      const order = action.payload;
+      if (!order) return;
+      const sale = state.sales.find((s) => s.id === order.id);
+      if (sale) sale.status = order.status;
+    });
     // Передача в доставку возвращает сырой заказ — обновляем статус продажи на месте,
     // сохраняя обогащённые поля (товары/покупатель) исходной записи продажи.
     builder.addCase(markShipped.fulfilled, (state, action) => {
@@ -112,6 +145,7 @@ const ordersSlice = createSlice({
     builder.addCase(logout, (state) => {
       state.items = [];
       state.sales = [];
+      state.deliveries = [];
       state.commission = 0;
       state.commissionDetails = [];
       state.error = null;

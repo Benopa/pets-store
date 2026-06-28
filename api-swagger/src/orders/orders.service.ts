@@ -369,14 +369,7 @@ export class OrdersService {
     if (!order) {
       throw new NotFoundException('Order not found');
     }
-    const myAnimals = await this.animalRepo.find({ where: { owner: { id: user.id } } });
-    const myIds = new Set(myAnimals.map((animal) => animal.id));
-    const ownsItem = (order.items ?? []).some(
-      (item) => item.type === 'pet' && myIds.has(item.itemId),
-    );
-    if (!ownsItem) {
-      throw new ForbiddenException('Можно отменить только заказ со своим товаром');
-    }
+    await this.assertSellerOwnsItem(order, user.id, 'Можно отменить только заказ со своим товаром');
     if (order.status === 'shipped') {
       throw new BadRequestException('Заказ уже в доставке — отменить нельзя');
     }
@@ -395,26 +388,60 @@ export class OrdersService {
     return saved;
   }
 
-  // Передача заказа в доставку продавцом. Доступна, если в заказе есть товар продавца
-  // и заказ ещё не отменён/не получен/не отправлен. Ставит статус 'shipped' и уведомляет покупателя.
-  async markShipped(id: string, user: User) {
-    const order = await this.orderRepo.findOne({ where: { id } });
-    if (!order) {
-      throw new NotFoundException('Order not found');
-    }
-    const myAnimals = await this.animalRepo.find({ where: { owner: { id: user.id } } });
+  // Проверяет, что в заказе есть товар текущего продавца — иначе действие ему недоступно.
+  private async assertSellerOwnsItem(order: Order, userId: string, message: string) {
+    const myAnimals = await this.animalRepo.find({ where: { owner: { id: userId } } });
     const myIds = new Set(myAnimals.map((animal) => animal.id));
     const ownsItem = (order.items ?? []).some(
       (item) => item.type === 'pet' && myIds.has(item.itemId),
     );
     if (!ownsItem) {
-      throw new ForbiddenException('Можно передать в доставку только заказ со своим товаром');
+      throw new ForbiddenException(message);
     }
-    if (order.status === 'cancelled') {
-      throw new BadRequestException('Отменённый заказ нельзя передать в доставку');
+  }
+
+  // Отметка «готов к отправке» продавцом — первый шаг перед передачей в доставку.
+  // Доступна для созданного/оплаченного заказа с товаром продавца. Идемпотентна.
+  async markReady(id: string, user: User) {
+    const order = await this.orderRepo.findOne({ where: { id } });
+    if (!order) {
+      throw new NotFoundException('Order not found');
     }
-    if (order.status === 'delivered') {
-      throw new BadRequestException('Полученный заказ уже доставлен');
+    await this.assertSellerOwnsItem(
+      order,
+      user.id,
+      'Можно подготовить только заказ со своим товаром',
+    );
+    if (order.status === 'ready') {
+      return order; // уже готов — ничего не меняем
+    }
+    if (order.status !== 'created' && order.status !== 'paid') {
+      throw new BadRequestException('Отметить готовым можно только новый заказ');
+    }
+    order.status = 'ready';
+    const saved = await this.orderRepo.save(order);
+    await this.notificationsService.create(order.user.id, {
+      type: 'order_ready',
+      title: 'Заказ готов к отправке',
+      body: 'Продавец подготовил ваш заказ к отправке.',
+    });
+    return saved;
+  }
+
+  // Передача заказа в доставку продавцом. Доступна только после отметки «готов к отправке»
+  // (status === 'ready'). Ставит статус 'shipped' и уведомляет покупателя.
+  async markShipped(id: string, user: User) {
+    const order = await this.orderRepo.findOne({ where: { id } });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    await this.assertSellerOwnsItem(
+      order,
+      user.id,
+      'Можно передать в доставку только заказ со своим товаром',
+    );
+    if (order.status !== 'ready') {
+      throw new BadRequestException('Сначала отметьте заказ готовым к отправке');
     }
     order.status = 'shipped';
     const saved = await this.orderRepo.save(order);
@@ -435,5 +462,66 @@ export class OrdersService {
       return this.orderRepo.save(order);
     }
     return order;
+  }
+
+  // Заказы для доставщика (только роль courier): попавшие в логистику — готовы к отправке,
+  // в доставке или получены. Позиции обогащаем названием товара; в фокусе — адрес доставки.
+  async deliveriesForCourier(user: User) {
+    if (user.role !== 'courier') {
+      throw new ForbiddenException('Доступно только доставщику');
+    }
+    const deliveryStatuses = new Set(['ready', 'shipped', 'delivered']);
+    const orders = await this.orderRepo.find({ order: { createdAt: 'DESC' } });
+    const animals = await this.animalRepo.find();
+    const byId = new Map(animals.map((animal) => [animal.id, animal] as [string, Animal]));
+    return orders
+      .filter((order) => deliveryStatuses.has(order.status))
+      .map((order) => ({
+        id: order.id,
+        status: order.status,
+        createdAt: order.createdAt,
+        address: order.address ?? null,
+        paymentMethod: order.paymentMethod ?? null,
+        paymentStatus: order.paymentStatus ?? 'on_delivery',
+        total: order.total != null ? Number(order.total) : null,
+        buyer: {
+          id: order.user?.id ?? null,
+          firstName: order.user?.firstName ?? null,
+          lastName: order.user?.lastName ?? null,
+          email: order.user?.email ?? null,
+        },
+        items: (order.items ?? []).map((item) => {
+          const animal = item.type === 'pet' ? byId.get(item.itemId) : undefined;
+          return {
+            type: item.type,
+            itemId: item.itemId,
+            name: animal?.name ?? (item.type === 'food' ? 'Корм' : 'Товар'),
+            quantity: item.quantity || 1,
+          };
+        }),
+      }));
+  }
+
+  // Отметка «передан покупателю» доставщиком — та же логика, что у покупателя «подтвердить
+  // получение»: заказ из доставки (shipped) становится полученным (delivered). Только роль courier.
+  async markDeliveredByCourier(id: string, user: User) {
+    if (user.role !== 'courier') {
+      throw new ForbiddenException('Доступно только доставщику');
+    }
+    const order = await this.orderRepo.findOne({ where: { id } });
+    if (!order) {
+      throw new NotFoundException('Order not found');
+    }
+    if (order.status !== 'shipped') {
+      throw new BadRequestException('Передать покупателю можно только заказ в доставке');
+    }
+    order.status = 'delivered';
+    const saved = await this.orderRepo.save(order);
+    await this.notificationsService.create(order.user.id, {
+      type: 'order_delivered',
+      title: 'Заказ доставлен',
+      body: 'Курьер отметил ваш заказ как переданный покупателю.',
+    });
+    return saved;
   }
 }

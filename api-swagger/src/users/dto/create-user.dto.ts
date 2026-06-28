@@ -2,7 +2,7 @@ import { ApiProperty } from '@nestjs/swagger';
 import { IsDateString, IsEmail, IsIn, IsOptional, IsString, MinLength } from 'class-validator';
 import { UserRole } from '../../entities/user.entity';
 
-const ROLES: UserRole[] = ['admin', 'moderator', 'seller', 'buyer'];
+const ROLES: UserRole[] = ['admin', 'moderator', 'seller', 'buyer', 'courier'];
 
 export class CreateUserDto {
   @ApiProperty({ example: 'user@example.com' })

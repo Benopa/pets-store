@@ -44,8 +44,9 @@ export const HomePage = () => {
   const role = useSelector((state) => state.auth.role);
   const userId = useSelector((state) => state.auth.userId);
   const cartItems = useSelector((state) => state.cart.items);
-  // Персонал (админ/модератор) не покупает — каталог в режиме просмотра (без «В корзину»/избранного).
-  const readOnly = role === 'admin' || role === 'moderator';
+  // Персонал (админ/модератор/доставщик) не покупает — каталог в режиме просмотра
+  // (без «В корзину»/избранного).
+  const readOnly = role === 'admin' || role === 'moderator' || role === 'courier';
 
   // В каталоге показываем только одобренные товары (старым карточкам статус не задан → считаем одобренными).
   const visibleAnimals = useMemo(

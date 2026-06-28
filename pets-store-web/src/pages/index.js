@@ -4,4 +4,5 @@ export * from './register';
 export * from './account';
 export * from './cart';
 export * from './moderation';
+export * from './delivery';
 export * from './chat';

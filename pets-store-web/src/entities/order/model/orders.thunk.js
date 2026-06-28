@@ -53,6 +53,23 @@ export const fetchCommissionDetails = createAsyncThunk(
   },
 );
 
+// Заказы для доставщика (роль courier): готовы к отправке / в доставке / получены, с адресами.
+export const fetchDeliveries = createAsyncThunk(
+  'orders/fetchDeliveries',
+  async (_, { getState, rejectWithValue }) => {
+    try {
+      const apiKey = getState().auth?.apiKey;
+      const response = await axios.get('/api/orders/deliveries', {
+        headers: apiKey ? { 'x-api-key': apiKey } : {},
+      });
+      return response.data;
+    } catch (err) {
+      const message = err.response?.data?.message;
+      return rejectWithValue(Array.isArray(message) ? message.join(', ') : message || err.message);
+    }
+  },
+);
+
 // История продаж продавца: заказы, содержащие его товары (которые уже купили).
 export const fetchSales = createAsyncThunk(
   'orders/fetchSales',
@@ -109,11 +126,25 @@ export const confirmOrderPayment = createAsyncThunk(
     patchOrder(`/api/orders/${orderId}/pay`, getState, rejectWithValue),
 );
 
-// Передача заказа в доставку продавцом (статус → shipped).
+// Отметка «готов к отправке» продавцом (статус → ready). Первый шаг перед передачей в доставку.
+export const markReady = createAsyncThunk(
+  'orders/markReady',
+  (orderId, { getState, rejectWithValue }) =>
+    patchOrder(`/api/orders/${orderId}/ready`, getState, rejectWithValue),
+);
+
+// Передача заказа в доставку продавцом (статус → shipped). Доступна только после «готов к отправке».
 export const markShipped = createAsyncThunk(
   'orders/markShipped',
   (orderId, { getState, rejectWithValue }) =>
     patchOrder(`/api/orders/${orderId}/ship`, getState, rejectWithValue),
+);
+
+// Доставщик отмечает заказ переданным покупателю (статус → delivered).
+export const markDelivered = createAsyncThunk(
+  'orders/markDelivered',
+  (orderId, { getState, rejectWithValue }) =>
+    patchOrder(`/api/orders/${orderId}/delivered`, getState, rejectWithValue),
 );
 
 // Отмена заказа продавцом с указанием причины (для заказов, содержащих его товар).

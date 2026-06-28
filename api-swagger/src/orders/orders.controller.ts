@@ -45,6 +45,12 @@ export class OrdersController {
     return this.ordersService.commissionDetails(req.user as User);
   }
 
+  // Заказы для доставщика (только роль courier). До ':id', чтобы путь не приняли за id заказа.
+  @Get('deliveries')
+  deliveries(@Request() req: { user: { id: string } }) {
+    return this.ordersService.deliveriesForCourier(req.user as User);
+  }
+
   @Get(':id')
   findOne(@Param('id') id: string, @Request() req: { user: { id: string } }) {
     return this.ordersService.findById(id, req.user as User);
@@ -61,7 +67,14 @@ export class OrdersController {
     return this.ordersService.cancel(id, req.user as User);
   }
 
+  // Отметка «готов к отправке» продавцом (для заказов с его товаром): статус → ready.
+  @Patch(':id/ready')
+  markReady(@Param('id') id: string, @Request() req: { user: { id: string } }) {
+    return this.ordersService.markReady(id, req.user as User);
+  }
+
   // Передача заказа в доставку продавцом (для заказов с его товаром): статус → shipped.
+  // Доступна только после отметки «готов к отправке».
   @Patch(':id/ship')
   markShipped(@Param('id') id: string, @Request() req: { user: { id: string } }) {
     return this.ordersService.markShipped(id, req.user as User);
@@ -97,5 +110,11 @@ export class OrdersController {
   @Patch(':id/pay')
   confirmPayment(@Param('id') id: string, @Request() req: { user: { id: string } }) {
     return this.ordersService.confirmPayment(id, req.user as User);
+  }
+
+  // Доставщик отмечает заказ переданным покупателю: shipped → delivered (как «подтвердить получение»).
+  @Patch(':id/delivered')
+  markDelivered(@Param('id') id: string, @Request() req: { user: { id: string } }) {
+    return this.ordersService.markDeliveredByCourier(id, req.user as User);
   }
 }

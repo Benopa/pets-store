@@ -10,7 +10,7 @@ import { Exclude } from 'class-transformer';
 import { Animal } from './animal.entity';
 import { Order } from './order.entity';
 
-export type UserRole = 'admin' | 'moderator' | 'seller' | 'buyer';
+export type UserRole = 'admin' | 'moderator' | 'seller' | 'buyer' | 'courier';
 
 export type PaymentMethod = 'card' | 'sbp' | 'cash';
 

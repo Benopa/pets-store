@@ -20,21 +20,23 @@ import {
   ClockCircleOutlined,
   CloseCircleOutlined,
   EnvironmentOutlined,
+  InboxOutlined,
   SearchOutlined,
   SyncOutlined,
   UserOutlined,
   WalletOutlined,
 } from '@ant-design/icons';
 import { setCurrentAnimal } from '@/entities/animal';
-import { cancelSale, markShipped } from '@/entities/order';
+import { cancelSale, markReady, markShipped } from '@/entities/order';
 import { API_ORIGIN } from '@/shared/config';
 
 const { Text } = Typography;
 
-// Статусы заказов: created → paid → shipped → delivered (терминальный) | cancelled.
+// Статусы заказов: created → paid → ready → shipped → delivered (терминальный) | cancelled.
 const STATUS_META = {
   created: { label: 'Создан', color: 'default', icon: <ClockCircleOutlined /> },
   paid: { label: 'Оплачен', color: 'processing', icon: <ClockCircleOutlined /> },
+  ready: { label: 'Готов к отправке', color: 'warning', icon: <InboxOutlined /> },
   shipped: { label: 'В доставке', color: 'processing', icon: <CarOutlined /> },
   delivered: { label: 'Получен', color: 'success', icon: <CheckCircleOutlined /> },
   cancelled: { label: 'Отменён', color: 'error', icon: <CloseCircleOutlined /> },
@@ -67,9 +69,13 @@ const CANCEL_REASONS = [
   'Другое',
 ];
 
-// Передать в доставку и отменить заказ продавец может только до передачи в доставку —
-// для созданного/оплаченного заказа. После статуса «В доставке» отмена недоступна.
-const isShippable = (status) => status === 'created' || status === 'paid';
+// Двухшаговая отправка: сначала продавец отмечает заказ «готов к отправке» (created/paid),
+// и только для готового заказа (ready) появляется «Передать в доставку».
+const isReadyable = (status) => status === 'created' || status === 'paid';
+const canShip = (status) => status === 'ready';
+// Отменить заказ продавец может, пока он не передан в доставку (до shipped).
+const isCancellableSale = (status) =>
+  status === 'created' || status === 'paid' || status === 'ready';
 
 // История проданных продавцом товаров (его карточки, которые уже купили).
 // Данные приходят с /api/orders/sales: позиции уже обогащены названием и ценой.
@@ -94,9 +100,21 @@ export const SalesHistory = () => {
   const [reason, setReason] = useState(CANCEL_REASONS[0]);
   const [otherReason, setOtherReason] = useState('');
   const [cancelling, setCancelling] = useState(false);
+  const [readying, setReadying] = useState(false);
   const [shipping, setShipping] = useState(false);
 
   const detail = sales.find((s) => s.id === detailId) || null;
+
+  const handleReady = async () => {
+    setReadying(true);
+    const result = await dispatch(markReady(detailId));
+    setReadying(false);
+    if (markReady.fulfilled.match(result)) {
+      message.success('Заказ отмечен готовым к отправке');
+    } else {
+      message.error(result.payload || 'Не удалось отметить готовым');
+    }
+  };
 
   const handleShip = async () => {
     setShipping(true);
@@ -280,7 +298,18 @@ export const SalesHistory = () => {
         footer={
           detail
             ? [
-                isShippable(detail.status) && (
+                isReadyable(detail.status) && (
+                  <Button
+                    key="ready"
+                    type="primary"
+                    icon={<InboxOutlined />}
+                    loading={readying}
+                    onClick={handleReady}
+                  >
+                    Готов к отправке
+                  </Button>
+                ),
+                canShip(detail.status) && (
                   <Button
                     key="ship"
                     type="primary"
@@ -291,7 +320,7 @@ export const SalesHistory = () => {
                     Передать в доставку
                   </Button>
                 ),
-                isShippable(detail.status) && (
+                isCancellableSale(detail.status) && (
                   <Button key="cancel" danger onClick={() => setCancelId(detail.id)}>
                     Отменить заказ
                   </Button>

@@ -5,6 +5,7 @@ import { favoritesReducer } from '@/entities/favorites';
 import { ordersReducer } from '@/entities/order';
 import { cartReducer } from '@/entities/cart';
 import { moderatorsReducer } from '@/entities/moderator';
+import { couriersReducer } from '@/entities/courier';
 import { shopsReducer } from '@/entities/shop';
 import { notificationsReducer } from '@/entities/notification';
 import { chatReducer } from '@/entities/chat';
@@ -17,6 +18,7 @@ export const store = configureStore({
     orders: ordersReducer,
     cart: cartReducer,
     moderators: moderatorsReducer,
+    couriers: couriersReducer,
     shops: shopsReducer,
     notifications: notificationsReducer,
     chat: chatReducer,

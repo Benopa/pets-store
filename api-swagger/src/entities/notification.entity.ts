@@ -8,7 +8,9 @@ export type NotificationType =
   | 'animal_rejected'
   | 'order_placed'
   | 'order_cancelled'
-  | 'order_shipped';
+  | 'order_ready'
+  | 'order_shipped'
+  | 'order_delivered';
 
 @Entity({ name: 'notifications' })
 export class Notification {

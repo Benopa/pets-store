@@ -1,8 +1,10 @@
 import { Column, CreateDateColumn, Entity, ManyToOne, PrimaryGeneratedColumn, UpdateDateColumn } from 'typeorm';
 import { User } from './user.entity';
 
+// Поток статусов: created/paid → ready (продавец отметил «готов к отправке») → shipped → delivered.
+// ready — продавец подготовил заказ; только после этого доступна передача в доставку.
 // delivered — заказ получен покупателем (терминальный статус, отмена больше недоступна).
-export type OrderStatus = 'created' | 'paid' | 'shipped' | 'delivered' | 'cancelled';
+export type OrderStatus = 'created' | 'paid' | 'ready' | 'shipped' | 'delivered' | 'cancelled';
 
 // Способ оплаты, выбранный при оформлении.
 export type PaymentMethod = 'card' | 'sbp' | 'cash';

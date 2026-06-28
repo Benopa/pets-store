@@ -22,6 +22,7 @@ import {
   CloseCircleOutlined,
   CloseOutlined,
   EnvironmentOutlined,
+  InboxOutlined,
   SearchOutlined,
   SyncOutlined,
   WalletOutlined,
@@ -32,10 +33,11 @@ import { API_ORIGIN } from '@/shared/config';
 
 const { Text } = Typography;
 
-// Статусы заказов: created → paid → shipped → delivered (терминальный) | cancelled.
+// Статусы заказов: created → paid → ready → shipped → delivered (терминальный) | cancelled.
 const STATUS_META = {
   created: { label: 'Создан', color: 'default', icon: <ClockCircleOutlined /> },
   paid: { label: 'Оплачен', color: 'processing', icon: <ClockCircleOutlined /> },
+  ready: { label: 'Готов к отправке', color: 'warning', icon: <InboxOutlined /> },
   shipped: { label: 'В доставке', color: 'processing', icon: <CarOutlined /> },
   delivered: { label: 'Получен', color: 'success', icon: <CheckCircleOutlined /> },
   cancelled: { label: 'Отменён', color: 'error', icon: <CloseCircleOutlined /> },

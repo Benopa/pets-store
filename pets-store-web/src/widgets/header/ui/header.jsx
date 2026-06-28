@@ -8,6 +8,7 @@ import {
   AuditOutlined,
   BellOutlined,
   MessageOutlined,
+  CarOutlined,
 } from '@ant-design/icons';
 import { logout } from '@/entities/auth';
 import {
@@ -37,6 +38,9 @@ export const Header = () => {
   );
 
   const isStaff = role === 'moderator' || role === 'admin';
+  const isCourier = role === 'courier';
+  // Корзину показываем только тем, кто покупает (покупатель/продавец).
+  const canShop = role === 'buyer' || role === 'seller';
 
   // Лента уведомлений в выпадающем меню «колокольчика».
   const notifMenu = {
@@ -82,12 +86,14 @@ export const Header = () => {
     items: [
       { key: 'profile', icon: <UserOutlined />, label: 'Личный кабинет' },
       ...(isStaff ? [{ key: 'moderation', icon: <AuditOutlined />, label: 'Модерация' }] : []),
+      ...(isCourier ? [{ key: 'delivery', icon: <CarOutlined />, label: 'Доставка' }] : []),
       { type: 'divider' },
       { key: 'logout', icon: <LogoutOutlined />, label: 'Выйти', danger: true },
     ],
     onClick: ({ key }) => {
       if (key === 'profile') navigate('/account');
       if (key === 'moderation') navigate('/moderation');
+      if (key === 'delivery') navigate('/delivery');
       if (key === 'logout') dispatch(logout());
     },
   };
@@ -117,7 +123,7 @@ export const Header = () => {
                 <Button shape="circle" icon={<BellOutlined />} aria-label="Уведомления" />
               </Badge>
             </Dropdown>
-            {!isStaff && (
+            {canShop && (
               <Badge count={cartCount} size="small" color="#9850fd">
                 <Button
                   shape="circle"

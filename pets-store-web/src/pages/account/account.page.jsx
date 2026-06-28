@@ -28,6 +28,7 @@ import {
   ShoppingOutlined,
   ShopOutlined,
   TeamOutlined,
+  CarOutlined,
   ArrowLeftOutlined,
   ArrowRightOutlined,
 } from '@ant-design/icons';
@@ -40,6 +41,7 @@ import { PurchaseHistory } from './components/purchase-history';
 import { SalesHistory } from './components/sales-history';
 import { ProductsManager } from './components/products-manager';
 import { ModeratorsManager } from './components/moderators-manager';
+import { CouriersManager } from './components/couriers-manager';
 import { StoresManager } from './components/stores-manager';
 import { ProfitModal } from './components/profit-modal';
 
@@ -51,6 +53,7 @@ const ROLE_META = {
   moderator: { label: 'Модератор', color: 'cyan' },
   seller: { label: 'Продавец', color: 'gold' },
   buyer: { label: 'Покупатель', color: 'purple' },
+  courier: { label: 'Доставщик', color: 'orange' },
 };
 
 export const AccountPage = () => {
@@ -93,7 +96,8 @@ export const AccountPage = () => {
   const isAdmin = role === 'admin';
   const isSeller = role === 'seller';
   const isModerator = role === 'moderator';
-  const isStaff = isAdmin || isModerator; // персонал — не покупает и не продаёт
+  const isCourier = role === 'courier';
+  const isStaff = isAdmin || isModerator || isCourier; // персонал — не покупает и не продаёт
   const canManage = isAdmin || isSeller;
 
   const favCount = favIds.length;
@@ -354,6 +358,15 @@ export const AccountPage = () => {
               </span>
             ),
             children: <ModeratorsManager />,
+          },
+          isAdmin && {
+            key: 'couriers',
+            label: (
+              <span>
+                <CarOutlined /> Доставщики
+              </span>
+            ),
+            children: <CouriersManager />,
           },
           canManage && {
             key: 'products',

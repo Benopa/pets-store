@@ -9,6 +9,7 @@ import {
   AccountPage,
   CartPage,
   ModerationPage,
+  DeliveryPage,
   ChatPage,
 } from '@/pages';
 import { fetchAnimals, fetchCategories } from '@/entities/animal';
@@ -31,6 +32,15 @@ const StaffRoute = ({ children }) => {
   if (!accessToken) return <Navigate to="/login" replace />;
   if (!role) return null;
   if (role !== 'moderator' && role !== 'admin') return <Navigate to="/" replace />;
+  return children;
+};
+
+// Доступ только для доставщика. Пока роль не загружена (fetchMe) — ждём, не редиректим.
+const CourierRoute = ({ children }) => {
+  const { accessToken, role } = useSelector((state) => state.auth);
+  if (!accessToken) return <Navigate to="/login" replace />;
+  if (!role) return null;
+  if (role !== 'courier') return <Navigate to="/" replace />;
   return children;
 };
 
@@ -102,6 +112,14 @@ export const App = () => {
               <StaffRoute>
                 <ModerationPage />
               </StaffRoute>
+            }
+          />
+          <Route
+            path="/delivery"
+            element={
+              <CourierRoute>
+                <DeliveryPage />
+              </CourierRoute>
             }
           />
           <Route
