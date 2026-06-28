@@ -63,6 +63,6 @@ docker run -p 3000:3000 --env-file env.example petstore-nest
 ## Environment variables
 - `DB_HOST`, `DB_PORT`, `DB_USERNAME`, `DB_PASSWORD`, `DB_NAME`
 - `JWT_SECRET`
-- `ADMIN_EMAIL`, `ADMIN_PASSWORD`, `ADMIN_API_KEY`
+- `ADMIN_EMAIL`, `ADMIN_PASSWORD`
 - `UPLOAD_DIR`
 

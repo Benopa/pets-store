@@ -26,10 +26,9 @@ async function bootstrap() {
 
   const config = new DocumentBuilder()
     .setTitle('Petstore API')
-    .setDescription('Petstore-like API with JWT and API key')
+    .setDescription('Petstore-like API with JWT auth')
     .setVersion('1.0.0')
     .addBearerAuth()
-    .addApiKey({ type: 'apiKey', name: 'x-api-key', in: 'header' }, 'apiKey')
     .build();
   const document = SwaggerModule.createDocument(app, config);
   SwaggerModule.setup('docs', app, document);

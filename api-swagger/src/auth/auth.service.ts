@@ -24,7 +24,6 @@ export class AuthService {
     const payload = { sub: user.id, role: user.role };
     return {
       accessToken: this.jwtService.sign(payload),
-      apiKey: user.apiKey,
       role: user.role,
     };
   }
@@ -73,7 +72,6 @@ export class AuthService {
       favorites: user.favorites ?? [],
       cart: user.cart ?? [],
       role: user.role,
-      apiKey: user.apiKey,
       createdAt: user.createdAt,
     };
   }

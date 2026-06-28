@@ -12,7 +12,7 @@ import {
   UseGuards,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiBearerAuth, ApiBody, ApiConsumes, ApiQuery, ApiSecurity, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiBody, ApiConsumes, ApiQuery, ApiTags } from '@nestjs/swagger';
 import { FileInterceptor } from '@nestjs/platform-express';
 import { diskStorage } from 'multer';
 import { randomUUID } from 'crypto';
@@ -23,7 +23,6 @@ import { CreateAnimalDto } from './dto/create-animal.dto';
 import { UpdateAnimalDto } from './dto/update-animal.dto';
 import { RejectAnimalDto } from './dto/reject-animal.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
 import { User } from '../entities/user.entity';
@@ -135,8 +134,8 @@ export class AnimalsController {
     return this.animalsService.resubmit(id, req.user.userId, req.user.role);
   }
 
-  @UseGuards(ApiKeyGuard)
-  @ApiSecurity('apiKey')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @Delete(':id')
   async remove(@Param('id') id: string, @Request() req: { user: User }) {
     await this.animalsService.remove(id, req.user);

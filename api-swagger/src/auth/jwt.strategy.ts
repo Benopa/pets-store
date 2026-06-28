@@ -13,6 +13,8 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
   }
 
   async validate(payload: { sub: string; role: string }) {
-    return { userId: payload.sub, role: payload.role };
+    // id и userId — один и тот же идентификатор: userId читают auth/animals/notifications,
+    // id — orders/animals(delete), где req.user используется как User (после отказа от x-api-key).
+    return { id: payload.sub, userId: payload.sub, role: payload.role };
   }
 }

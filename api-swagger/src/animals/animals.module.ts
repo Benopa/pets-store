@@ -10,7 +10,6 @@ import { AnimalImage } from '../entities/animal-image.entity';
 import { Shop } from '../entities/shop.entity';
 import { UsersModule } from '../users/users.module';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
 
 @Module({
   imports: [
@@ -18,7 +17,7 @@ import { ApiKeyGuard } from '../common/guards/api-key.guard';
     UsersModule,
     NotificationsModule,
   ],
-  providers: [AnimalsService, ApiKeyGuard],
+  providers: [AnimalsService],
   controllers: [AnimalsController],
 })
 export class AnimalsModule {}

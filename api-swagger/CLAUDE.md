@@ -1,6 +1,6 @@
 # CLAUDE.md — Backend (api-swagger)
 
-REST API для Pets Store. **NestJS 10 + TypeORM + PostgreSQL**, аутентификация через **JWT** и **API-ключ**. Swagger-документация на `/docs`.
+REST API для Pets Store. **NestJS 10 + TypeORM + PostgreSQL**, аутентификация через **JWT** (Bearer). Swagger-документация на `/docs`.
 
 ## Команды
 
@@ -15,7 +15,7 @@ npm run start:prod     # прод-режим (node dist/main.js)
 
 - Сервер слушает **порт 3000** (захардкожен в `src/main.ts`).
 - Swagger UI: `http://localhost:3000/docs`.
-- Тестов и линтера в проекте нет.
+- Юнит-тесты на **Jest** + ts-jest (`npm test`): сервисы (`src/**/*.service.spec.ts`) инстанцируются напрямую с мок-репозиториями (без Nest DI). Линтера нет.
 - Полная инструкция по локальному запуску на Windows (Node + Postgres без Docker) — в `WINDOWS_SETUP.md`.
 
 ## Окружение (`.env`)
@@ -26,7 +26,7 @@ npm run start:prod     # прод-режим (node dist/main.js)
 | --- | --- |
 | `DB_HOST` / `DB_PORT` / `DB_USERNAME` / `DB_PASSWORD` / `DB_NAME` | подключение к Postgres (по умолчанию `localhost:5432`, `app/app`, БД `petstore`) |
 | `JWT_SECRET` | секрет для подписи JWT (fallback `change_me`) |
-| `ADMIN_EMAIL` / `ADMIN_PASSWORD` / `ADMIN_API_KEY` | данные администратора, создаётся автоматически при старте |
+| `ADMIN_EMAIL` / `ADMIN_PASSWORD` | данные администратора, создаётся автоматически при старте |
 | `UPLOAD_DIR` | каталог для загруженных файлов. **На Windows ставить `./uploads`** (значение из Docker — `/app/uploads`) |
 
 При старте `UsersService.ensureAdminUser()` создаёт/обновляет admin-пользователя из этих переменных.
@@ -41,19 +41,19 @@ src/
   app.module.ts        # корневой модуль, TypeOrmModule.forRootAsync, подключение доменов
   auth/                # POST /auth/register, POST /auth/login, GET /auth/me; JwtStrategy
   migrations/          # TypeORM-миграции; data-source.ts (src/) — конфиг для CLI
-  users/               # CRUD пользователей, findByApiKey, ensureAdminUser
+  users/               # CRUD пользователей, ensureAdminUser
   categories/          # категории животных
   animals/             # животные + загрузка изображений (multipart)
-  orders/              # заказы (целиком под API-ключом); при создании уведомляет продавцов купленных питомцев
+  orders/              # заказы (целиком под JWT); при создании уведомляет продавцов купленных питомцев
   notifications/       # уведомления пользователю (GET лента/счётчик, PATCH прочтения); сервис экспортируется
   entities/            # ВСЕ TypeORM-сущности собраны здесь (User, Category, Animal, AnimalImage, Order, Shop, Notification)
   common/
-    guards/            # jwt-auth.guard, api-key.guard, roles.guard
+    guards/            # jwt-auth.guard, roles.guard
     decorators/        # @Roles(...)
 ```
 
 ### Модель данных
-- `User` — `email`, `passwordHash` (bcrypt), профиль (`firstName`, `lastName`, `birthDate`, `address`, `paymentMethod`, `avatar`), `favorites` (jsonb — id избранных), `cart` (jsonb — `[{animalId, quantity}]`), `role`, уникальный `apiKey`.
+- `User` — `email`, `passwordHash` (bcrypt), профиль (`firstName`, `lastName`, `birthDate`, `address`, `paymentMethod`, `avatar`), `favorites` (jsonb — id избранных), `cart` (jsonb — `[{animalId, quantity}]`), `role`.
   - **Роли**: `admin` | `moderator` | `seller` | `buyer` (по умолчанию `buyer`).
 - `Animal` — основная сущность: `name`, `species`, `price`, `ageMonths`, `status` (`available` по умолчанию), связи `category`/`owner`/`images` (все `eager`).
   - **Цена и комиссия**: продавец указывает базовую цену `basePrice`; покупательская `price` = `basePrice + floor(basePrice * commissionRate)` (комиссия округляется **вниз до целых рублей**). Для товаров продавцов `commissionRate = 0.05` (5% в сторону сайта), для админских — `0`. Цена пересчитывается в `AnimalsService` при создании и при правке цены (хелпер `withCommission`).
@@ -61,16 +61,15 @@ src/
 - `Category`, `Order` — категории и заказы.
 
 ### Аутентификация и авторизация
-Два независимых механизма, выбираются на уровне эндпоинта через guard'ы:
+Все защищённые эндпоинты — на **JWT (Bearer)**:
 
-- **JWT (Bearer)** — `JwtAuthGuard` + `@ApiBearerAuth()`. Используется для логина и операций создания/обновления (`POST/PATCH /animals`, `/auth/me`). `JwtStrategy.validate` кладёт в `req.user` объект `{ userId, role }`.
-- **API-ключ** — `ApiKeyGuard` + `@ApiSecurity('apiKey')`, заголовок `x-api-key`. Используется для `DELETE /animals/:id` и **всего** контроллера `orders`. Guard кладёт в `req.user` полную сущность `User`.
+- **JWT (Bearer)** — `JwtAuthGuard` + `@ApiBearerAuth()`. Используется везде: логин, создание/обновление (`POST/PATCH /animals`, `/auth/me`), `DELETE /animals/:id` и **весь** контроллер `orders`. `JwtStrategy.validate` кладёт в `req.user` объект `{ id, userId, role }` (`id` === `userId`).
 - **Роли** — `RolesGuard` + декоратор `@Roles('admin')` читают требуемые роли через `Reflector`. Без `@Roles` доступ открыт любому аутентифицированному пользователю.
 
-> Важно: форма `req.user` различается между guard'ами — JWT даёт `{ userId, role }`, API-ключ даёт полную `User`. Учитывать при чтении `req.user` в контроллерах/сервисах.
+> Авторизация по `x-api-key` удалена (миграция `RemoveUserApiKey`). В контроллерах `req.user.userId`/`req.user.id` — один и тот же идентификатор; orders/animals(delete) используют `req.user` как `User` (берут `.id`/`.role`).
 
 ### Регистрация и роли
-- **Публичная регистрация** — `POST /auth/register` (`RegisterDto`). Роль ограничена значениями `buyer`/`seller` (через `@IsIn`), по умолчанию `buyer`. Возвращает сразу `accessToken` + `apiKey` (авто-логин). Дубликат email → `409 Conflict` (проверка в `UsersService.create`).
+- **Публичная регистрация** — `POST /auth/register` (`RegisterDto`). Роль ограничена значениями `buyer`/`seller` (через `@IsIn`), по умолчанию `buyer`. Возвращает сразу `accessToken` (авто-логин). Дубликат email → `409 Conflict` (проверка в `UsersService.create`).
 - **Модератор и админ** — создаются только админом через `POST /users` (контроллер под `@Roles('admin')`). `CreateUserDto` допускает все 4 роли.
 - **Сид админа** — `UsersService.ensureAdminUser()` при старте поднимает/обновляет пользователя с ролью `admin` из `ADMIN_*`.
 
@@ -79,7 +78,7 @@ src/
 - `POST /auth/change-password` — смена пароля (сверяет текущий).
 - `POST /auth/me/avatar` — загрузка аватара (multipart, как у животных: `FileInterceptor` + `diskStorage`, URL `/uploads/<uuid>.<ext>`).
 - `PUT /auth/me/favorites` — избранное хранится per-user на сервере (переживает выход/вход); фронт шлёт полный список id.
-- `PUT /auth/me/cart` — корзина хранится per-user на сервере (тоже переживает выход/вход). Оформление заказа — `POST /orders` (по API-ключу) → запись попадает в историю покупок (`GET /orders`), после чего корзина очищается.
+- `PUT /auth/me/cart` — корзина хранится per-user на сервере (тоже переживает выход/вход). Оформление заказа — `POST /orders` (под JWT) → запись попадает в историю покупок (`GET /orders`), после чего корзина очищается.
 
 ### Миграции (TypeORM)
 - Схема управляется **миграциями**. `synchronize` выключен через `.env` (**`DB_SYNCHRONIZE=false`**); при старте Nest прогоняет миграции (`migrationsRun`, см. `app.module.ts`). Поставить `DB_SYNCHRONIZE=true` вернёт авто-sync (для быстрых экспериментов в dev).

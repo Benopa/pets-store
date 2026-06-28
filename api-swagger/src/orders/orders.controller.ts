@@ -1,16 +1,16 @@
 import { Body, Controller, Get, Param, Patch, Post, Request, UseGuards } from '@nestjs/common';
-import { ApiSecurity, ApiTags } from '@nestjs/swagger';
+import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 
 import { OrdersService } from './orders.service';
 import { CreateOrderDto } from './dto/create-order.dto';
 import { UpdateOrderDto } from './dto/update-order.dto';
 import { CancelOrderDto } from './dto/cancel-order.dto';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
+import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { User } from '../entities/user.entity';
 
 @ApiTags('orders')
-@ApiSecurity('apiKey')
-@UseGuards(ApiKeyGuard)
+@ApiBearerAuth()
+@UseGuards(JwtAuthGuard)
 @Controller('orders')
 export class OrdersController {
   constructor(private readonly ordersService: OrdersService) {}

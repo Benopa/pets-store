@@ -8,11 +8,10 @@ import { OrdersService } from './orders.service';
 import { OrdersController } from './orders.controller';
 import { UsersModule } from '../users/users.module';
 import { NotificationsModule } from '../notifications/notifications.module';
-import { ApiKeyGuard } from '../common/guards/api-key.guard';
 
 @Module({
   imports: [TypeOrmModule.forFeature([Order, User, Animal]), UsersModule, NotificationsModule],
-  providers: [OrdersService, ApiKeyGuard],
+  providers: [OrdersService],
   controllers: [OrdersController],
 })
 export class OrdersModule {}

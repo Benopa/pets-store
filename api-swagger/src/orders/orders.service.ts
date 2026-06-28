@@ -35,6 +35,8 @@ export class OrdersService {
     if (!dbUser) {
       throw new NotFoundException('User not found');
     }
+    // Продавец не может купить собственный товар — отклоняем до списания остатка.
+    await this.assertNotOwnProducts(dto.items, dbUser.id);
     // Списываем остаток со склада (с проверкой наличия) до создания заказа.
     await this.decrementStock(dto.items);
     // Онлайн-оплата (карта/СБП) создаётся в статусе «ждём подтверждения из банка» и подтверждается
@@ -52,6 +54,18 @@ export class OrdersService {
     const saved = await this.orderRepo.save(order);
     await this.notifySellers(dto, dbUser.id);
     return saved;
+  }
+
+  // Запрет покупки собственного товара: если среди позиций-питомцев есть товар, владелец
+  // которого — сам покупатель, заказ отклоняется (продавец не покупает свой товар).
+  private async assertNotOwnProducts(items: { type: string; itemId: string }[], userId: string) {
+    const petItems = items.filter((item) => item.type === 'pet');
+    for (const item of petItems) {
+      const animal = await this.animalRepo.findOne({ where: { id: item.itemId } });
+      if (animal?.owner?.id === userId) {
+        throw new BadRequestException(`Нельзя купить собственный товар «${animal.name}»`);
+      }
+    }
   }
 
   // Списание остатка при оформлении: сначала проверяем наличие по всем позициям-питомцам,

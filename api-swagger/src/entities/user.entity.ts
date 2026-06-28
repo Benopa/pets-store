@@ -69,12 +69,6 @@ export class User {
   @Column({ type: 'varchar', default: 'buyer' })
   role!: UserRole;
 
-  // apiKey — активный секрет (авторизация заказов по x-api-key). Не сериализуется в
-  // ответах-сущностях; владелец получает его через issueTokens/toProfile (plain-объекты).
-  @Exclude()
-  @Column({ unique: true })
-  apiKey!: string;
-
   @OneToMany(() => Animal, (animal) => animal.owner)
   animals!: Animal[];
 
