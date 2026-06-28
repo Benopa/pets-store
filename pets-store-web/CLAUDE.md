@@ -64,12 +64,14 @@ src/
 ```
 
 ### Состояние (Redux Toolkit)
+
 - Слайсы (`entities/*/model`): `animal`, `auth`, `favorites`, `orders`, `cart`, `moderators`, `shops`. Асинхронные операции — `createAsyncThunk` + `axios` (общий `bearer/errMessage` из `@/shared/api`). Ключи стора неизменны.
 - **Профиль/избранное/корзина** грузятся с бэкенда через `fetchMe` (диспатчится в `app.component` при наличии токена) и сохраняются на бэкенде — переживают выход/вход.
 - `cart`: `[{animalId, quantity}]`; операции оптимистичны и сразу персистятся (`saveCart`). `checkout` → `POST /orders` → чистит корзину → `fetchOrders` (история).
 - `auth`: `accessToken`, профиль, `apiKey` (нужен для заказов).
 
 ### Роутинг и доступ
+
 - `PrivateRoute` пускает на `/` только при наличии `accessToken`, иначе редирект на `/login`.
 - `GuestRoute` оборачивает `/login` и `/register` — если уже залогинен, редиректит на `/`.
 - **Регистрация** (`registerAuth`) шлёт `POST /api/auth/register` и при успехе так же кладёт токен в `localStorage` + стор (авто-логин). Роль выбирается `Segmented` (Покупатель/Продавец), дата рождения из antd `DatePicker` приводится к `YYYY-MM-DD` перед отправкой. Ошибки бэкенда (напр. занятый email) пробрасываются через `rejectWithValue`.
@@ -83,6 +85,7 @@ src/
 - Тема Ant Design настраивается в `main.jsx` через `ConfigProvider` (`token`). Брендовый цвет — фиолетовый **`#9850fd`** (`colorPrimary`).
 
 ## Конвенции
+
 - Компоненты — `.jsx`, файлы slice/thunk/barrel — `.js`. Имена файлов в **kebab-case** (`animal-card.jsx`), экспорты — **именованные** (без `export default`).
 - Импорты между слоями FSD — через публичные API слайсов: `@/entities/<x>`, `@/widgets/<x>`, `@/shared/<x>`, `@/pages`, `@/app/store` (не по глубоким путям). Внутри слайса — относительные.
 - ESLint (flat-config `eslint.config.js`) + Prettier (`prettier.config.js`). Перед коммитом гонять `npm run lint` / `npm run format`.

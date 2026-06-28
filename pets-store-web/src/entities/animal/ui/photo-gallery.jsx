@@ -6,12 +6,18 @@ import { API_ORIGIN } from '@/shared/config';
 export const PhotoGallery = ({ animal }) => {
   const carouselRef = useRef(null);
   const [active, setActive] = useState(0);
+  const [prevAnimalId, setPrevAnimalId] = useState(animal.id);
 
   const photos = (animal.images ?? []).map((img) => `${API_ORIGIN}${img.url}`);
 
-  // reset to first photo whenever a new animal is shown
-  useEffect(() => {
+  // Сброс на первое фото при смене товара: состояние правим во время рендера
+  // (рекомендованный React-паттерн вместо setState в эффекте)...
+  if (animal.id !== prevAnimalId) {
+    setPrevAnimalId(animal.id);
     setActive(0);
+  }
+  // ...а сам слайдер прокручиваем к началу императивно в эффекте.
+  useEffect(() => {
     carouselRef.current?.goTo(0, true);
   }, [animal.id]);
 
