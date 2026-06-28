@@ -62,7 +62,7 @@ export const AccountPage = () => {
   const [passwordForm] = Form.useForm();
   const [profitOpen, setProfitOpen] = useState(false);
 
-  const { email, firstName, lastName, role, avatar, apiKey, loading, changingPassword } =
+  const { email, firstName, lastName, role, avatar, accessToken, loading, changingPassword } =
     useSelector((state) => state.auth);
   const orders = useSelector((state) => state.orders.items);
   const sales = useSelector((state) => state.orders.sales);
@@ -75,13 +75,13 @@ export const AccountPage = () => {
   }, [dispatch]);
 
   useEffect(() => {
-    if (!apiKey) return;
+    if (!accessToken) return;
     dispatch(fetchOrders());
     // Продавцу дополнительно — история его продаж (товары, которые у него купили).
     if (role === 'seller') dispatch(fetchSales());
     // Админу — сводка по комиссии сайта (заработок магазина).
     if (role === 'admin') dispatch(fetchCommission());
-  }, [dispatch, apiKey, role]);
+  }, [dispatch, accessToken, role]);
 
   const initialLoading = loading && !email;
   const fullName = [firstName, lastName].filter(Boolean).join(' ') || 'Без имени';

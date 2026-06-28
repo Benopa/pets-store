@@ -54,7 +54,6 @@ export const checkout = createAsyncThunk(
     { getState, dispatch, rejectWithValue },
   ) => {
     try {
-      const apiKey = getState().auth?.apiKey;
       const cartItems = getState().cart.items;
       const ids = selectedIds?.length ? selectedIds : cartItems.map((i) => i.animalId);
       const idSet = new Set(ids);
@@ -74,7 +73,7 @@ export const checkout = createAsyncThunk(
           ...(address ? { address } : {}),
           ...(paymentMethod ? { paymentMethod } : {}),
         },
-        { headers: apiKey ? { 'x-api-key': apiKey } : {} },
+        { headers: authHeader(getState) },
       );
       ids.forEach((id) => dispatch(removeItem(id)));
       await dispatch(saveCart());

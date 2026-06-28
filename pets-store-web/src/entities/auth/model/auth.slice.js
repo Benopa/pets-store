@@ -10,7 +10,6 @@ import {
 
 const initialState = {
   accessToken: localStorage.getItem('token'),
-  apiKey: null,
   role: null,
   userId: null,
   email: null,
@@ -35,9 +34,6 @@ const authSlice = createSlice({
     setAccessToken: (state, action) => {
       state.accessToken = action.payload;
     },
-    setApiKey: (state, action) => {
-      state.apiKey = action.payload;
-    },
     setRole: (state, action) => {
       state.role = action.payload;
     },
@@ -46,7 +42,6 @@ const authSlice = createSlice({
     },
     logout: (state) => {
       state.accessToken = null;
-      state.apiKey = null;
       state.role = null;
       state.userId = null;
       state.email = null;
@@ -68,7 +63,6 @@ const authSlice = createSlice({
     });
     builder.addCase(loginAuth.fulfilled, (state, action) => {
       state.accessToken = action.payload.accessToken;
-      state.apiKey = action.payload.apiKey;
       state.role = action.payload.role;
       state.loading = false;
     });
@@ -82,7 +76,6 @@ const authSlice = createSlice({
     });
     builder.addCase(registerAuth.fulfilled, (state, action) => {
       state.accessToken = action.payload.accessToken;
-      state.apiKey = action.payload.apiKey;
       state.role = action.payload.role;
       state.loading = false;
     });
@@ -105,7 +98,6 @@ const authSlice = createSlice({
       state.paymentMethod = p.paymentMethod;
       state.avatar = p.avatar;
       state.role = p.role;
-      state.apiKey = p.apiKey ?? state.apiKey;
       state.createdAt = p.createdAt;
       state.loading = false;
     });
@@ -158,5 +150,5 @@ const authSlice = createSlice({
   },
 });
 
-export const { setAccessToken, setApiKey, setRole, setUserId, logout } = authSlice.actions;
+export const { setAccessToken, setRole, setUserId, logout } = authSlice.actions;
 export default authSlice.reducer;

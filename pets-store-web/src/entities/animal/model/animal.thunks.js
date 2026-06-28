@@ -156,15 +156,12 @@ export const resubmitAnimal = createAsyncThunk(
   },
 );
 
-// Удаление товара (по API-ключу).
+// Удаление товара (JWT).
 export const deleteAnimal = createAsyncThunk(
   'animal/deleteAnimal',
   async (id, { getState, rejectWithValue }) => {
     try {
-      const apiKey = getState().auth?.apiKey;
-      await axios.delete(`/api/animals/${id}`, {
-        headers: apiKey ? { 'x-api-key': apiKey } : {},
-      });
+      await axios.delete(`/api/animals/${id}`, { headers: bearer(getState) });
       return id;
     } catch (err) {
       return rejectWithValue(errMessage(err));

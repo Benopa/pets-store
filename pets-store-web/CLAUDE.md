@@ -15,7 +15,15 @@ npm run lint           # ESLint по src и vite.config.js
 npm run lint:fix       # ESLint с автофиксом
 npm run format         # Prettier --write по всему проекту
 npm run format:check   # проверка форматирования
+npm test               # Vitest — юнит-тесты санок-запросов (*.thunk(s).test.js)
+npm run test:watch     # Vitest в watch-режиме
+npm run cypress:run    # Cypress e2e (headless) — нужен запущенный фронт :5173 + бэк :3000
+npm run cypress        # Cypress интерактивно
 ```
+
+### Тесты
+- **Unit (Vitest, jsdom)** — конфиг в `vite.config.js` (блок `test`), setup `src/test/setup.js`. Санки-запросы тестируются прямым вызовом `thunk(dispatch, getState)` (helper `src/test/run-thunk.js`) с моком модуля `axios` (`@/shared/api` реэкспортит тот же глобальный `axios`). Файлы — рядом со слайсами (`entities/*/model/*.test.js`).
+- **E2E (Cypress)** — `cypress.config.mjs` (baseUrl :5173), спеки `cypress/e2e/*.cy.js`, команды `cypress/support/commands.js` (логин/регистрация через API напрямую к :3000). Требуют поднятый стек (бэк+фронт+Postgres).
 
 Для работы нужен запущенный backend (`api-swagger`) на `http://localhost:3000`.
 
@@ -53,7 +61,7 @@ src/
     auth/      model/   # login/register/fetchMe/updateProfile/changePassword/uploadAvatar, logout
     cart/      model/   # addToCart/setCartQty/removeFromCart/clearCart/checkout → PUT /auth/me/cart, POST /orders
     favorites/ model/   # toggleFavorite → PUT /auth/me/favorites
-    order/     model/   # fetchOrders → GET /orders (x-api-key)
+    order/     model/   # fetchOrders → GET /orders (JWT)
     notification/ model/ # лента уведомлений (JWT): fetchNotifications + mark(All)Read; «колокольчик» в header, polling 30с в app.component
     chat/      model/   # чат поддержки (демо, БЕЗ бэкенда): slice (мок-чаты, demoRole, selectedId) + helpers + data; страница /chat
     moderator/ model/   # CRUD модераторов (GET/POST/DELETE /users)
@@ -68,7 +76,7 @@ src/
 - Слайсы (`entities/*/model`): `animal`, `auth`, `favorites`, `orders`, `cart`, `moderators`, `shops`. Асинхронные операции — `createAsyncThunk` + `axios` (общий `bearer/errMessage` из `@/shared/api`). Ключи стора неизменны.
 - **Профиль/избранное/корзина** грузятся с бэкенда через `fetchMe` (диспатчится в `app.component` при наличии токена) и сохраняются на бэкенде — переживают выход/вход.
 - `cart`: `[{animalId, quantity}]`; операции оптимистичны и сразу персистятся (`saveCart`). `checkout` → `POST /orders` → чистит корзину → `fetchOrders` (история).
-- `auth`: `accessToken`, профиль, `apiKey` (нужен для заказов).
+- `auth`: `accessToken` (JWT, в т.ч. для заказов), профиль.
 
 ### Роутинг и доступ
 

@@ -1,19 +1,20 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
-import axios from 'axios';
+import { axios, bearer } from '@/shared/api';
 
-// История заказов закрыта API-ключом (заголовок x-api-key), ключ берём из auth-стора.
+const errText = (err) => {
+  const message = err.response?.data?.message;
+  return Array.isArray(message) ? message.join(', ') : message || err.message;
+};
+
+// История заказов — под JWT (заголовок Authorization: Bearer ...).
 export const fetchOrders = createAsyncThunk(
   'orders/fetchOrders',
   async (_, { getState, rejectWithValue }) => {
     try {
-      const apiKey = getState().auth?.apiKey;
-      const response = await axios.get('/api/orders', {
-        headers: apiKey ? { 'x-api-key': apiKey } : {},
-      });
+      const response = await axios.get('/api/orders', { headers: bearer(getState) });
       return response.data;
     } catch (err) {
-      const message = err.response?.data?.message;
-      return rejectWithValue(Array.isArray(message) ? message.join(', ') : message || err.message);
+      return rejectWithValue(errText(err));
     }
   },
 );
@@ -23,14 +24,10 @@ export const fetchCommission = createAsyncThunk(
   'orders/fetchCommission',
   async (_, { getState, rejectWithValue }) => {
     try {
-      const apiKey = getState().auth?.apiKey;
-      const response = await axios.get('/api/orders/commission', {
-        headers: apiKey ? { 'x-api-key': apiKey } : {},
-      });
+      const response = await axios.get('/api/orders/commission', { headers: bearer(getState) });
       return response.data;
     } catch (err) {
-      const message = err.response?.data?.message;
-      return rejectWithValue(Array.isArray(message) ? message.join(', ') : message || err.message);
+      return rejectWithValue(errText(err));
     }
   },
 );
@@ -41,14 +38,12 @@ export const fetchCommissionDetails = createAsyncThunk(
   'orders/fetchCommissionDetails',
   async (_, { getState, rejectWithValue }) => {
     try {
-      const apiKey = getState().auth?.apiKey;
       const response = await axios.get('/api/orders/commission/details', {
-        headers: apiKey ? { 'x-api-key': apiKey } : {},
+        headers: bearer(getState),
       });
       return response.data;
     } catch (err) {
-      const message = err.response?.data?.message;
-      return rejectWithValue(Array.isArray(message) ? message.join(', ') : message || err.message);
+      return rejectWithValue(errText(err));
     }
   },
 );
@@ -58,14 +53,10 @@ export const fetchDeliveries = createAsyncThunk(
   'orders/fetchDeliveries',
   async (_, { getState, rejectWithValue }) => {
     try {
-      const apiKey = getState().auth?.apiKey;
-      const response = await axios.get('/api/orders/deliveries', {
-        headers: apiKey ? { 'x-api-key': apiKey } : {},
-      });
+      const response = await axios.get('/api/orders/deliveries', { headers: bearer(getState) });
       return response.data;
     } catch (err) {
-      const message = err.response?.data?.message;
-      return rejectWithValue(Array.isArray(message) ? message.join(', ') : message || err.message);
+      return rejectWithValue(errText(err));
     }
   },
 );
@@ -75,26 +66,20 @@ export const fetchSales = createAsyncThunk(
   'orders/fetchSales',
   async (_, { getState, rejectWithValue }) => {
     try {
-      const apiKey = getState().auth?.apiKey;
-      const response = await axios.get('/api/orders/sales', {
-        headers: apiKey ? { 'x-api-key': apiKey } : {},
-      });
+      const response = await axios.get('/api/orders/sales', { headers: bearer(getState) });
       return response.data;
     } catch (err) {
-      const message = err.response?.data?.message;
-      return rejectWithValue(Array.isArray(message) ? message.join(', ') : message || err.message);
+      return rejectWithValue(errText(err));
     }
   },
 );
 
 const patchOrder = async (url, getState, rejectWithValue) => {
   try {
-    const apiKey = getState().auth?.apiKey;
-    const response = await axios.patch(url, {}, { headers: apiKey ? { 'x-api-key': apiKey } : {} });
+    const response = await axios.patch(url, {}, { headers: bearer(getState) });
     return response.data;
   } catch (err) {
-    const message = err.response?.data?.message;
-    return rejectWithValue(Array.isArray(message) ? message.join(', ') : message || err.message);
+    return rejectWithValue(errText(err));
   }
 };
 
@@ -152,16 +137,14 @@ export const cancelSale = createAsyncThunk(
   'orders/cancelSale',
   async ({ orderId, reason }, { getState, rejectWithValue }) => {
     try {
-      const apiKey = getState().auth?.apiKey;
       const response = await axios.patch(
         `/api/orders/${orderId}/cancel-sale`,
         { reason },
-        { headers: apiKey ? { 'x-api-key': apiKey } : {} },
+        { headers: bearer(getState) },
       );
       return response.data;
     } catch (err) {
-      const message = err.response?.data?.message;
-      return rejectWithValue(Array.isArray(message) ? message.join(', ') : message || err.message);
+      return rejectWithValue(errText(err));
     }
   },
 );

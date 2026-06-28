@@ -39,15 +39,15 @@ const buyerNameOf = (buyer) =>
 export const DeliveryPage = () => {
   const dispatch = useDispatch();
   const { message } = App.useApp();
-  const apiKey = useSelector((state) => state.auth.apiKey);
+  const accessToken = useSelector((state) => state.auth.accessToken);
   const { deliveries, deliveriesLoading } = useSelector((state) => state.orders);
   const [status, setStatus] = useState('all');
   const [busyId, setBusyId] = useState(null);
 
-  // Заказы доставки тянем по API-ключу — ждём, пока профиль (с ключом) загрузится.
+  // Заказы доставки тянем под JWT — ждём, пока появится токен авторизации.
   useEffect(() => {
-    if (apiKey) dispatch(fetchDeliveries());
-  }, [dispatch, apiKey]);
+    if (accessToken) dispatch(fetchDeliveries());
+  }, [dispatch, accessToken]);
 
   const handleDelivered = async (id) => {
     setBusyId(id);
