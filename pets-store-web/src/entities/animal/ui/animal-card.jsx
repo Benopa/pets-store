@@ -58,6 +58,8 @@ export const AnimalCard = ({ animal, readOnly = false }) => {
   const outOfStock = stock === 0;
   // Свой товар продавцу/админу писать некому — кнопку «Написать продавцу» не показываем.
   const canMessageSeller = !readOnly && animal.owner?.id && animal.owner.id !== userId;
+  // Свой товар продавец не покупает — кнопку «В корзину» на нём скрываем (карточку видно).
+  const isOwnProduct = Boolean(animal.owner?.id && animal.owner.id === userId);
 
   const imageUrl =
     animal.imageUrl ||
@@ -167,14 +169,20 @@ export const AnimalCard = ({ animal, readOnly = false }) => {
                 <Button icon={<MessageOutlined />} onClick={handleWriteSeller} />
               </Tooltip>
             )}
-            <Button
-              type="primary"
-              icon={<ShoppingCartOutlined />}
-              onClick={handleAddToCart}
-              disabled={outOfStock}
-            >
-              {outOfStock ? 'Нет в наличии' : 'В корзину'}
-            </Button>
+            {isOwnProduct ? (
+              <Tag color="gold" className="!mr-0">
+                Ваш товар
+              </Tag>
+            ) : (
+              <Button
+                type="primary"
+                icon={<ShoppingCartOutlined />}
+                onClick={handleAddToCart}
+                disabled={outOfStock}
+              >
+                {outOfStock ? 'Нет в наличии' : 'В корзину'}
+              </Button>
+            )}
           </div>
         )}
       </div>

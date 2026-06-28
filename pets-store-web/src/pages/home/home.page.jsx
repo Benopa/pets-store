@@ -89,6 +89,8 @@ export const HomePage = () => {
   // Чужой товар можно обсудить с продавцом; свой — нет.
   const canMessageSeller =
     !readOnly && currentAnimal?.owner?.id && currentAnimal.owner.id !== userId;
+  // Свой товар продавец не покупает — кнопку «В корзину» в просмотре не показываем.
+  const isOwnProduct = Boolean(currentAnimal?.owner?.id && currentAnimal.owner.id === userId);
   const handleWriteSeller = () => {
     dispatch(
       startProductChat({
@@ -171,17 +173,19 @@ export const HomePage = () => {
                 <Button key="close" onClick={closeModal}>
                   Закрыть
                 </Button>,
-                <Button
-                  key="buy"
-                  type="primary"
-                  icon={<ShoppingCartOutlined />}
-                  onClick={handleAddToCart}
-                  disabled={currentAnimal?.stock === 0}
-                >
-                  {currentAnimal?.stock === 0
-                    ? 'Нет в наличии'
-                    : `В корзину · ${currentAnimal ? Number(currentAnimal.price) : 0} ₽`}
-                </Button>,
+                !isOwnProduct && (
+                  <Button
+                    key="buy"
+                    type="primary"
+                    icon={<ShoppingCartOutlined />}
+                    onClick={handleAddToCart}
+                    disabled={currentAnimal?.stock === 0}
+                  >
+                    {currentAnimal?.stock === 0
+                      ? 'Нет в наличии'
+                      : `В корзину · ${currentAnimal ? Number(currentAnimal.price) : 0} ₽`}
+                  </Button>
+                ),
               ]
         }
       >
