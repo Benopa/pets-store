@@ -31,6 +31,28 @@ if [ ! -f .env ]; then
   exit 0
 fi
 
+WEB_PORT="$(grep -E '^WEB_PORT=' .env | cut -d= -f2)"
+WEB_PORT="${WEB_PORT:-8080}"
+
+# Превентивная проверка: не занят ли публикуемый порт другим процессом/контейнером.
+# Только предупреждаем — поднимаем лишь свой проект, чужие контейнеры не трогаем.
+port_in_use() {
+  if command -v ss >/dev/null 2>&1; then
+    ss -ltnH "sport = :$1" 2>/dev/null | grep -q .
+  elif command -v netstat >/dev/null 2>&1; then
+    netstat -ltn 2>/dev/null | grep -qE "[:.]$1[[:space:]]"
+  else
+    return 1
+  fi
+}
+if [ "${1:-up}" != "--down" ] && [ "${1:-up}" != "--logs" ] && port_in_use "$WEB_PORT"; then
+  echo "ВНИМАНИЕ: порт ${WEB_PORT} на сервере уже занят (его слушает другой сервис)." >&2
+  echo "          Смени WEB_PORT в .env на свободный и запусти снова —" >&2
+  echo "          иначе поднимется только db+api, а web упадёт с 'port is already allocated'." >&2
+  echo "          (Чужие контейнеры при этом не затрагиваются.)" >&2
+  exit 1
+fi
+
 case "${1:-up}" in
   --down)
     echo "Останавливаю стек (тома сохраняются)..."
@@ -59,10 +81,8 @@ esac
 if [ "${1:-up}" = "up" ] || [ "${1:-up}" = "" ] || [ "${1:-up}" = "--rebuild" ]; then
   echo ""
   $DC ps
-  PORT="$(grep -E '^WEB_PORT=' .env | cut -d= -f2)"
-  PORT="${PORT:-80}"
   echo ""
-  echo "Готово. Сайт:        http://<server-ip>:${PORT}/"
-  echo "       Swagger:      http://<server-ip>:${PORT}/docs"
+  echo "Готово. Сайт:        http://<server-ip>:${WEB_PORT}/"
+  echo "       Swagger:      http://<server-ip>:${WEB_PORT}/docs"
   echo "Логи:  ./deploy.sh --logs"
 fi
