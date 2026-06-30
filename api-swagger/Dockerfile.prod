@@ -1,0 +1,39 @@
+# ---- build stage ----
+# Прод-образ бэкенда для docker-compose: БЕЗ встроенного Postgres
+# (база живёт в отдельном сервисе `db`). Сравни со standalone-`Dockerfile`,
+# который тащит postgres внутрь контейнера.
+FROM node:20-bookworm-slim AS build
+WORKDIR /app
+
+# Инструменты для сборки нативных модулей (bcrypt) — остаются только в build-слое.
+RUN apt-get update \
+  && apt-get install -y --no-install-recommends python3 make g++ \
+  && rm -rf /var/lib/apt/lists/*
+
+COPY package.json package-lock.json ./
+RUN npm ci
+
+COPY tsconfig.json tsconfig.build.json nest-cli.json ./
+COPY src ./src
+RUN npm run build && npm prune --omit=dev
+
+# ---- runtime stage ----
+FROM node:20-bookworm-slim AS runtime
+ENV NODE_ENV=production
+WORKDIR /app
+
+COPY package.json ./
+COPY --from=build /app/node_modules ./node_modules
+COPY --from=build /app/dist ./dist
+
+# Засеваем стартовые изображения товаров/аватары. Named-volume `uploads`
+# при первом создании наследует содержимое этой папки из образа,
+# дальше файлы живут в volume (загрузки пользователей переживают пересборку).
+COPY uploads ./uploads
+
+EXPOSE 3000
+
+# Схема и данные приезжают дампом в сервис `db`; здесь только старт Nest.
+# При старте app.module прогонит migrationsRun — все миграции уже отмечены
+# применёнными в дампе, поэтому это no-op.
+CMD ["node", "dist/main.js"]

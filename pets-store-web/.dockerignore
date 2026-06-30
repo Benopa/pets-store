@@ -1,4 +1,6 @@
 node_modules
 dist
+cypress
 .git
-env.example
+.vscode
+*.log
