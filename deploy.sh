@@ -45,7 +45,15 @@ port_in_use() {
     return 1
   fi
 }
-if [ "${1:-up}" != "--down" ] && [ "${1:-up}" != "--logs" ] && port_in_use "$WEB_PORT"; then
+# Порт уже держит НАШ же web-контейнер (стек запущен)? Тогда это не конфликт:
+# compose при обновлении пересоздаст его на том же порту. Ругаемся только на чужой процесс.
+own_web_on_port() {
+  [ -n "$(docker ps -q \
+    --filter 'label=com.docker.compose.project=pets-store' \
+    --filter "publish=$1" 2>/dev/null)" ]
+}
+if [ "${1:-up}" != "--down" ] && [ "${1:-up}" != "--logs" ] \
+  && port_in_use "$WEB_PORT" && ! own_web_on_port "$WEB_PORT"; then
   echo "ВНИМАНИЕ: порт ${WEB_PORT} на сервере уже занят (его слушает другой сервис)." >&2
   echo "          Смени WEB_PORT в .env на свободный и запусти снова —" >&2
   echo "          иначе поднимется только db+api, а web упадёт с 'port is already allocated'." >&2
