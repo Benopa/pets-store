@@ -1,7 +1,7 @@
 import { createAsyncThunk } from '@reduxjs/toolkit';
 import { axios, bearer, errMessage } from '@/shared/api';
 
-// Список доставщиков (админ): GET /users → оставляем только role === 'courier'.
+// Список курьеров (админ): GET /users → оставляем только role === 'courier'.
 export const fetchCouriers = createAsyncThunk(
   'couriers/fetchCouriers',
   async (_, { getState, rejectWithValue }) => {
@@ -14,7 +14,7 @@ export const fetchCouriers = createAsyncThunk(
   },
 );
 
-// Создание доставщика (админ): POST /users с ролью courier.
+// Создание курьера (админ): POST /users с ролью courier.
 export const createCourier = createAsyncThunk(
   'couriers/createCourier',
   async ({ email, password, firstName, lastName }, { getState, rejectWithValue }) => {
@@ -31,7 +31,7 @@ export const createCourier = createAsyncThunk(
   },
 );
 
-// Удаление доставщика (админ): DELETE /users/:id.
+// Удаление курьера (админ): DELETE /users/:id.
 export const deleteCourier = createAsyncThunk(
   'couriers/deleteCourier',
   async (id, { getState, rejectWithValue }) => {

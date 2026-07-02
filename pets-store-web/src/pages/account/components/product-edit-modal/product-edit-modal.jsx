@@ -1,6 +1,18 @@
 import { useEffect, useState } from 'react';
 import { useDispatch, useSelector } from 'react-redux';
-import { App, Form, Input, InputNumber, Modal, Select, Spin, Tooltip, Upload } from 'antd';
+import {
+  App,
+  Button,
+  Divider,
+  Form,
+  Input,
+  InputNumber,
+  Modal,
+  Select,
+  Spin,
+  Tooltip,
+  Upload,
+} from 'antd';
 import { PlusOutlined, DeleteOutlined, StarOutlined, LoadingOutlined } from '@ant-design/icons';
 import {
   COMMISSION_RATE,
@@ -13,6 +25,10 @@ import {
 } from '@/entities/animal';
 import { fetchShops } from '@/entities/shop';
 import { API_ORIGIN } from '@/shared/config';
+
+// Префикс значения Select для ещё не созданной (предложенной) категории: value = `new:Рыбки`.
+// На submit такое значение уходит как newCategoryName, а не categoryId.
+const NEW_CATEGORY_PREFIX = 'new:';
 
 // Один элемент сетки фото: обложка-бейдж + действия (обложка/удалить) по ховеру.
 const PhotoTile = ({ src, isCover, onCover, onDelete, disabled }) => (
@@ -83,6 +99,13 @@ const ProductEditModalInner = ({ animal, onClose }) => {
       ? COMMISSION_RATE
       : 0;
 
+  // Новые категории, предложенные в этой сессии (ещё не созданы на бэкенде). При редактировании
+  // товара с уже предложенной, но не подтверждённой категорией — подхватываем её.
+  const [newCats, setNewCats] = useState(() =>
+    animal?.proposedCategoryName && !animal?.category ? [animal.proposedCategoryName] : [],
+  );
+  const [draftCat, setDraftCat] = useState('');
+
   // EDIT: серверные фото (с id) — операции сразу уходят на бэкенд.
   const [existing, setExisting] = useState(() => (animal?.images ?? []).slice());
   // CREATE: локальные файлы + их превью; заливаются при сохранении.
@@ -96,7 +119,11 @@ const ProductEditModalInner = ({ animal, onClose }) => {
     a?.basePrice != null ? Number(a.basePrice) : a?.price != null ? Number(a.price) : null;
   const initialValues = {
     name: animal?.name ?? '',
-    categoryId: animal?.category?.id,
+    categoryId:
+      animal?.category?.id ??
+      (animal?.proposedCategoryName
+        ? `${NEW_CATEGORY_PREFIX}${animal.proposedCategoryName}`
+        : undefined),
     species: animal?.species ?? '',
     description: animal?.description ?? '',
     ageMonths: animal?.ageMonths ?? null,
@@ -154,6 +181,35 @@ const ProductEditModalInner = ({ animal, onClose }) => {
   const coverServer = (imageId) =>
     runPhotoOp(setAnimalCover({ animalId: animal.id, imageId }), 'Не удалось сменить обложку');
 
+  // Опции категорий: существующие + предложенные в этой сессии (помечены «новая»).
+  const categoryOptions = [
+    ...categories.map((c) => ({ value: c.id, label: c.name })),
+    ...newCats.map((name) => ({
+      value: `${NEW_CATEGORY_PREFIX}${name}`,
+      label: `${name} (новая)`,
+    })),
+  ];
+
+  // Добавление новой категории: если такое имя уже есть — просто выбираем существующую,
+  // иначе заводим предложение и выбираем его. Реально категория создастся при одобрении.
+  const addCategory = () => {
+    const name = draftCat.trim();
+    if (name.length < 2) {
+      message.error('Название категории — минимум 2 символа');
+      return;
+    }
+    const existingCat = categories.find((c) => c.name.toLowerCase() === name.toLowerCase());
+    if (existingCat) {
+      form.setFieldValue('categoryId', existingCat.id);
+    } else {
+      if (!newCats.some((n) => n.toLowerCase() === name.toLowerCase())) {
+        setNewCats((prev) => [...prev, name]);
+      }
+      form.setFieldValue('categoryId', `${NEW_CATEGORY_PREFIX}${name}`);
+    }
+    setDraftCat('');
+  };
+
   const handleOk = async () => {
     let vals;
     try {
@@ -161,9 +217,14 @@ const ProductEditModalInner = ({ animal, onClose }) => {
     } catch {
       return; // ошибки валидации покажет antd
     }
+    // Предложенная новая категория уходит как newCategoryName, существующая — как categoryId.
+    const catValue = vals.categoryId;
+    const isNewCategory = typeof catValue === 'string' && catValue.startsWith(NEW_CATEGORY_PREFIX);
     const data = {
       name: vals.name.trim(),
-      categoryId: vals.categoryId,
+      ...(isNewCategory
+        ? { newCategoryName: catValue.slice(NEW_CATEGORY_PREFIX.length) }
+        : { categoryId: catValue }),
       species: vals.species?.trim() || undefined,
       description: vals.description?.trim() || undefined,
       ageMonths: vals.ageMonths ?? undefined,
@@ -286,11 +347,36 @@ const ProductEditModalInner = ({ animal, onClose }) => {
             label="Категория"
             className="flex-1"
             rules={[{ required: true, message: 'Выберите категорию' }]}
+            extra={
+              <span className="text-xs text-stone-500">
+                Нет нужной? Впишите свою внизу списка — её подтвердит модератор.
+              </span>
+            }
           >
             <Select
               size="large"
               placeholder="Категория"
-              options={categories.map((c) => ({ value: c.id, label: c.name }))}
+              options={categoryOptions}
+              popupRender={(menu) => (
+                <>
+                  {menu}
+                  <Divider className="!my-2" />
+                  <div className="flex items-center gap-2 px-2 pb-1">
+                    <Input
+                      size="small"
+                      placeholder="Новая категория"
+                      value={draftCat}
+                      maxLength={40}
+                      onChange={(e) => setDraftCat(e.target.value)}
+                      onKeyDown={(e) => e.stopPropagation()}
+                      onPressEnter={addCategory}
+                    />
+                    <Button type="text" icon={<PlusOutlined />} onClick={addCategory}>
+                      Добавить
+                    </Button>
+                  </div>
+                </>
+              )}
             />
           </Form.Item>
         </div>

@@ -35,7 +35,9 @@ import {
 const { Title, Text, Paragraph } = Typography;
 
 export const HomePage = () => {
-  const { animals, loading, error, currentAnimal, sort } = useSelector((state) => state.animal);
+  const { animals, loading, error, currentAnimal, sort, onlyFavorites } = useSelector(
+    (state) => state.animal,
+  );
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -44,14 +46,20 @@ export const HomePage = () => {
   const role = useSelector((state) => state.auth.role);
   const userId = useSelector((state) => state.auth.userId);
   const cartItems = useSelector((state) => state.cart.items);
-  // Персонал (админ/модератор/доставщик) не покупает — каталог в режиме просмотра
+  // Персонал (админ/модератор/курьер) не покупает — каталог в режиме просмотра
   // (без «В корзину»/избранного).
   const readOnly = role === 'admin' || role === 'moderator' || role === 'courier';
 
   // В каталоге показываем только одобренные товары (старым карточкам статус не задан → считаем одобренными).
+  // При включённом фильтре «Избранное» оставляем только отмеченные пользователем товары.
   const visibleAnimals = useMemo(
-    () => animals.filter((a) => (a.moderationStatus ?? 'approved') === 'approved'),
-    [animals],
+    () =>
+      animals.filter(
+        (a) =>
+          (a.moderationStatus ?? 'approved') === 'approved' &&
+          (!onlyFavorites || favIds.includes(a.id)),
+      ),
+    [animals, onlyFavorites, favIds],
   );
 
   const sortedAnimals = useMemo(() => {
@@ -136,7 +144,10 @@ export const HomePage = () => {
         </div>
       )}
       {visibleAnimals.length === 0 && !loading && !error && (
-        <Empty description="Ничего не найдено" className="!my-20" />
+        <Empty
+          description={onlyFavorites ? 'В избранном пока пусто' : 'Ничего не найдено'}
+          className="!my-20"
+        />
       )}
       {visibleAnimals.length > 0 && (
         <div className="grid gap-5 sm:grid-cols-2 lg:grid-cols-3">

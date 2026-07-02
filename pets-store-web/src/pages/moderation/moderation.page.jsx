@@ -12,6 +12,7 @@ import {
   Input,
   List,
   Modal,
+  Select,
   Space,
   Tag,
   Typography,
@@ -22,6 +23,8 @@ import {
   CloseOutlined,
   CloseCircleOutlined,
   ArrowLeftOutlined,
+  PlusOutlined,
+  TagsOutlined,
 } from '@ant-design/icons';
 import {
   CATEGORY_COLOR,
@@ -65,6 +68,7 @@ export const ModerationPage = () => {
   const dispatch = useDispatch();
   const { message, modal } = App.useApp();
   const animals = useSelector((state) => state.animal.animals);
+  const categories = useSelector((state) => state.animal.categories);
 
   // Подтягиваем свежий список при входе на страницу (весь, без лимита 20 —
   // иначе очередь модерации и общий каталог увидят лишь 20 свежих карточек).
@@ -82,14 +86,41 @@ export const ModerationPage = () => {
   );
 
   const [detail, setDetail] = useState(null);
+  // Товар с предложенной новой категорией, ожидающий решения модератора (окно подтверждения).
+  const [catDecision, setCatDecision] = useState(null);
+  const [decisionCatId, setDecisionCatId] = useState(undefined);
 
-  const approve = async (animal) => {
-    const result = await dispatch(approveAnimal(animal.id));
+  const doApprove = async (animal, opts = {}) => {
+    const result = await dispatch(approveAnimal({ id: animal.id, ...opts }));
     if (approveAnimal.fulfilled.match(result)) {
       message.success(`«${animal.name}» одобрен и опубликован`);
     } else {
       message.error(result.payload || 'Не удалось одобрить товар');
     }
+  };
+
+  // Если продавец предложил новую категорию — сперва спрашиваем модератора, создать её
+  // или назначить существующую. Иначе одобряем сразу.
+  const approve = (animal) => {
+    if (animal.proposedCategoryName) {
+      setDecisionCatId(undefined);
+      setCatDecision(animal);
+    } else {
+      doApprove(animal);
+    }
+  };
+
+  const confirmCreateCategory = async () => {
+    const animal = catDecision;
+    setCatDecision(null);
+    await doApprove(animal, { createCategory: true });
+  };
+
+  const confirmAssignCategory = async () => {
+    const animal = catDecision;
+    const categoryId = decisionCatId;
+    setCatDecision(null);
+    await doApprove(animal, { categoryId });
   };
 
   const reject = (animal) => {
@@ -195,11 +226,15 @@ export const ModerationPage = () => {
                       </Text>
                     </div>
                     <Space size="small">
-                      {animal.category?.name && (
+                      {animal.category?.name ? (
                         <Tag color={CATEGORY_COLOR[animal.category.name]} className="!mr-0">
                           {animal.category.name}
                         </Tag>
-                      )}
+                      ) : animal.proposedCategoryName ? (
+                        <Tag color="gold" icon={<TagsOutlined />} className="!mr-0">
+                          Новая: {animal.proposedCategoryName}
+                        </Tag>
+                      ) : null}
                       <Tag color={MODERATION_STATUS.pending.color} className="!mr-0">
                         {MODERATION_STATUS.pending.label}
                       </Tag>
@@ -331,9 +366,13 @@ export const ModerationPage = () => {
               <Title level={4} className="!mb-1">
                 {detail.name}
               </Title>
-              {detail.category?.name && (
+              {detail.category?.name ? (
                 <Tag color={CATEGORY_COLOR[detail.category.name]}>{detail.category.name}</Tag>
-              )}
+              ) : detail.proposedCategoryName ? (
+                <Tag color="gold" icon={<TagsOutlined />}>
+                  Новая категория: {detail.proposedCategoryName}
+                </Tag>
+              ) : null}
               <Paragraph type="secondary" className="!mt-2 !mb-0">
                 {detail.species || '—'}
               </Paragraph>
@@ -369,6 +408,42 @@ export const ModerationPage = () => {
                   },
                 ].filter(Boolean)}
               />
+            </div>
+          </div>
+        )}
+      </Modal>
+
+      {/* Подтверждение новой категории при одобрении товара */}
+      <Modal
+        open={Boolean(catDecision)}
+        onCancel={() => setCatDecision(null)}
+        title="Новая категория на утверждении"
+        footer={null}
+      >
+        {catDecision && (
+          <div className="mt-2">
+            <Paragraph className="!mb-4">
+              Продавец предлагает новую категорию{' '}
+              <Text strong>«{catDecision.proposedCategoryName}»</Text> для товара «
+              {catDecision.name}». Создать её или назначить существующую?
+            </Paragraph>
+            <Button type="primary" block icon={<PlusOutlined />} onClick={confirmCreateCategory}>
+              Создать «{catDecision.proposedCategoryName}» и одобрить
+            </Button>
+            <Divider className="!my-4">или назначьте существующую</Divider>
+            <div className="flex gap-2">
+              <Select
+                className="flex-1"
+                placeholder="Выберите категорию"
+                value={decisionCatId}
+                onChange={setDecisionCatId}
+                showSearch
+                optionFilterProp="label"
+                options={categories.map((c) => ({ value: c.id, label: c.name }))}
+              />
+              <Button disabled={!decisionCatId} onClick={confirmAssignCategory}>
+                Назначить и одобрить
+              </Button>
             </div>
           </div>
         )}

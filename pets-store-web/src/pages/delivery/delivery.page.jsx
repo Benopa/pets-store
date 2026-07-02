@@ -15,7 +15,7 @@ import { fetchDeliveries, markDelivered } from '@/entities/order';
 
 const { Title, Text } = Typography;
 
-// Логистические статусы заказа, которые видит доставщик.
+// Логистические статусы заказа, которые видит курьер.
 const STATUS_META = {
   ready: { label: 'Готов к отправке', color: 'warning', icon: <InboxOutlined /> },
   shipped: { label: 'В доставке', color: 'processing', icon: <CarOutlined /> },
@@ -142,7 +142,7 @@ export const DeliveryPage = () => {
                   </Text>
                 </div>
 
-                {/* Адрес — главное для доставщика. */}
+                {/* Адрес — главное для курьера. */}
                 <div className="mt-4 flex items-start gap-2 rounded-xl bg-stone-50 px-4 py-3">
                   <EnvironmentOutlined className="mt-0.5 text-[#9850fd]" />
                   <div className="min-w-0">

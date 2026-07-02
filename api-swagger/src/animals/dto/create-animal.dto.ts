@@ -55,9 +55,25 @@ export class CreateAnimalDto {
   @IsString()
   status?: string;
 
-  @ApiProperty({ example: 'e3b2c5a8-4f2d-4b9f-9b5d-6e1d8b0b9c5a' })
+  @ApiProperty({
+    example: 'e3b2c5a8-4f2d-4b9f-9b5d-6e1d8b0b9c5a',
+    required: false,
+    description: 'Существующая категория. Не указывать, если предлагается новая (newCategoryName).',
+  })
+  @IsOptional()
   @IsString()
-  categoryId!: string;
+  categoryId?: string;
+
+  @ApiProperty({
+    example: 'Рыбки',
+    required: false,
+    description:
+      'Название новой категории, предложенной продавцом. Создаётся при одобрении модератором.',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  newCategoryName?: string;
 
   @ApiProperty({
     example: 'a1b2c3d4-0000-0000-0000-000000000000',

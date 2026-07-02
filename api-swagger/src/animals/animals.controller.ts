@@ -22,6 +22,7 @@ import { AnimalsService } from './animals.service';
 import { CreateAnimalDto } from './dto/create-animal.dto';
 import { UpdateAnimalDto } from './dto/update-animal.dto';
 import { RejectAnimalDto } from './dto/reject-animal.dto';
+import { ApproveAnimalDto } from './dto/approve-animal.dto';
 import { JwtAuthGuard } from '../common/guards/jwt-auth.guard';
 import { RolesGuard } from '../common/guards/roles.guard';
 import { Roles } from '../common/decorators/roles.decorator';
@@ -114,8 +115,8 @@ export class AnimalsController {
   @UseGuards(JwtAuthGuard, RolesGuard)
   @Roles('admin', 'moderator')
   @Patch(':id/approve')
-  approve(@Param('id') id: string) {
-    return this.animalsService.approve(id);
+  approve(@Param('id') id: string, @Body() dto: ApproveAnimalDto) {
+    return this.animalsService.approve(id, dto);
   }
 
   @ApiBearerAuth()

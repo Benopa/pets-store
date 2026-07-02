@@ -35,7 +35,7 @@ const StaffRoute = ({ children }) => {
   return children;
 };
 
-// Доступ только для доставщика. Пока роль не загружена (fetchMe) — ждём, не редиректим.
+// Доступ только для курьера. Пока роль не загружена (fetchMe) — ждём, не редиректим.
 const CourierRoute = ({ children }) => {
   const { accessToken, role } = useSelector((state) => state.auth);
   if (!accessToken) return <Navigate to="/login" replace />;

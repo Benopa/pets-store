@@ -105,16 +105,17 @@ export const setAnimalCover = createAsyncThunk(
 
 // --- Модерация (JWT, роль moderator/admin) — каждый эндпоинт отдаёт обновлённую карточку ---
 
-// Одобрить товар → публикуется в каталоге.
+// Одобрить товар → публикуется в каталоге. Аргумент — id (строка) или объект
+// { id, createCategory?, categoryId? }: если продавец предложил новую категорию, модератор
+// либо создаёт её (createCategory), либо назначает существующую (categoryId).
 export const approveAnimal = createAsyncThunk(
   'animal/approveAnimal',
-  async (id, { getState, rejectWithValue }) => {
+  async (arg, { getState, rejectWithValue }) => {
+    const { id, ...body } = typeof arg === 'string' ? { id: arg } : arg;
     try {
-      const res = await axios.patch(
-        `/api/animals/${id}/approve`,
-        {},
-        { headers: bearer(getState) },
-      );
+      const res = await axios.patch(`/api/animals/${id}/approve`, body, {
+        headers: bearer(getState),
+      });
       return res.data;
     } catch (err) {
       return rejectWithValue(errMessage(err));

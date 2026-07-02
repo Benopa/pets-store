@@ -51,15 +51,47 @@ export class AnimalsService {
     return shop;
   }
 
-  async create(dto: CreateAnimalDto, userId: string) {
-    const category = await this.categoryRepo.findOne({ where: { id: dto.categoryId } });
+  // Определяет категорию товара из dto. Если продавец предложил новую (newCategoryName) —
+  // она пока не создаётся, а её название кладётся в proposedCategoryName до модерации.
+  // Совпадение с существующим именем → используем готовую категорию (предлагать нечего).
+  // Админ/модератор создаёт категорию сразу (их товары не проходят модерацию).
+  private async resolveCategory(
+    categoryId: string | undefined,
+    newCategoryName: string | undefined,
+    role: string,
+  ): Promise<{ category: Category | null; proposedCategoryName: string | null }> {
+    const proposed = newCategoryName?.trim();
+    if (proposed) {
+      const existing = await this.categoryRepo.findOne({ where: { name: proposed } });
+      if (existing) {
+        return { category: existing, proposedCategoryName: null };
+      }
+      if (role === 'seller') {
+        return { category: null, proposedCategoryName: proposed };
+      }
+      const created = await this.categoryRepo.save(this.categoryRepo.create({ name: proposed }));
+      return { category: created, proposedCategoryName: null };
+    }
+    if (!categoryId) {
+      throw new BadRequestException('Укажите категорию или предложите новую');
+    }
+    const category = await this.categoryRepo.findOne({ where: { id: categoryId } });
     if (!category) {
       throw new NotFoundException('Category not found');
     }
+    return { category, proposedCategoryName: null };
+  }
+
+  async create(dto: CreateAnimalDto, userId: string) {
     const owner = await this.userRepo.findOne({ where: { id: userId } });
     if (!owner) {
       throw new NotFoundException('User not found');
     }
+    const { category, proposedCategoryName } = await this.resolveCategory(
+      dto.categoryId,
+      dto.newCategoryName,
+      owner.role,
+    );
     // Карточки продавцов уходят на модерацию; админ/модератор публикуют сразу.
     const moderationStatus = owner.role === 'seller' ? 'pending' : 'approved';
     // Комиссия сайта начисляется только на товары продавцов. Продавец указывает свою (базовую)
@@ -84,6 +116,7 @@ export class AnimalsService {
       status: dto.status ?? 'available',
       moderationStatus,
       category,
+      proposedCategoryName,
       owner,
       shop,
     });
@@ -205,12 +238,15 @@ export class AnimalsService {
     if (dto.stock !== undefined) {
       animal.stock = dto.stock;
     }
-    if (dto.categoryId) {
-      const category = await this.categoryRepo.findOne({ where: { id: dto.categoryId } });
-      if (!category) {
-        throw new NotFoundException('Category not found');
-      }
+    // Категория: выбор существующей либо предложение новой (как при создании).
+    if (dto.categoryId || dto.newCategoryName) {
+      const { category, proposedCategoryName } = await this.resolveCategory(
+        dto.categoryId,
+        dto.newCategoryName,
+        role,
+      );
       animal.category = category;
+      animal.proposedCategoryName = proposedCategoryName;
     }
     // Привязка/отвязка магазина: shopId передан (включая null — отвязать).
     if (dto.shopId !== undefined) {
@@ -226,8 +262,31 @@ export class AnimalsService {
   }
 
   // Одобрение карточки модератором/админом — публикуется в каталоге.
-  async approve(id: string) {
+  // Если продавец предложил новую категорию (proposedCategoryName), модератор должен её
+  // разрешить: opts.createCategory — создать предложенную (появится в списке), либо
+  // opts.categoryId — назначить существующую вместо неё.
+  async approve(id: string, opts: { createCategory?: boolean; categoryId?: string } = {}) {
     const animal = await this.findById(id);
+    if (animal.proposedCategoryName) {
+      if (opts.createCategory) {
+        const name = animal.proposedCategoryName;
+        const category =
+          (await this.categoryRepo.findOne({ where: { name } })) ??
+          (await this.categoryRepo.save(this.categoryRepo.create({ name })));
+        animal.category = category;
+      } else if (opts.categoryId) {
+        const category = await this.categoryRepo.findOne({ where: { id: opts.categoryId } });
+        if (!category) {
+          throw new NotFoundException('Category not found');
+        }
+        animal.category = category;
+      } else {
+        throw new BadRequestException(
+          'Подтвердите новую категорию: создайте её или выберите существующую',
+        );
+      }
+      animal.proposedCategoryName = null;
+    }
     animal.moderationStatus = 'approved';
     animal.rejectReason = null;
     const saved = await this.animalRepo.save(animal);

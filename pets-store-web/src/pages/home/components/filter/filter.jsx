@@ -1,7 +1,13 @@
 import { useDispatch, useSelector } from 'react-redux';
-import { Input, Select } from 'antd';
-import { SearchOutlined, AppstoreOutlined, SortAscendingOutlined } from '@ant-design/icons';
-import { setCategoryId, setSearch, setSort } from '@/entities/animal';
+import { Input, Select, Button } from 'antd';
+import {
+  SearchOutlined,
+  AppstoreOutlined,
+  SortAscendingOutlined,
+  HeartOutlined,
+  HeartFilled,
+} from '@ant-design/icons';
+import { setCategoryId, setSearch, setOnlyFavorites, setSort } from '@/entities/animal';
 
 // Варианты сортировки каталога (логика — в home.page.jsx).
 const SORT_OPTIONS = [
@@ -14,7 +20,12 @@ const SORT_OPTIONS = [
 
 export const Filter = () => {
   const dispatch = useDispatch();
-  const { categories, categoryId, search, sort } = useSelector((state) => state.animal);
+  const { categories, categoryId, search, onlyFavorites, sort } = useSelector(
+    (state) => state.animal,
+  );
+  const role = useSelector((state) => state.auth.role);
+  // Избранное есть только у покупателей/продавцов — персоналу переключатель не показываем.
+  const canFavorite = !(role === 'admin' || role === 'moderator' || role === 'courier');
   const optionsCategories = categories.map((category) => ({
     value: category.id,
     label: category.name,
@@ -42,6 +53,16 @@ export const Filter = () => {
           suffixIcon={<AppstoreOutlined />}
           options={optionsCategories}
         />
+        {canFavorite && (
+          <Button
+            size="large"
+            type={onlyFavorites ? 'primary' : 'default'}
+            icon={onlyFavorites ? <HeartFilled /> : <HeartOutlined />}
+            onClick={() => dispatch(setOnlyFavorites(!onlyFavorites))}
+          >
+            Избранное
+          </Button>
+        )}
       </div>
       <Select
         value={sort}

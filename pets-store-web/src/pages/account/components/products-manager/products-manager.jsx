@@ -159,11 +159,15 @@ export const ProductsManager = () => {
                 title={
                   <div className="flex flex-wrap items-center gap-2">
                     <span>{animal.name}</span>
-                    {animal.category?.name && (
+                    {animal.category?.name ? (
                       <Tag color={CATEGORY_COLOR[animal.category.name]} className="!mr-0">
                         {animal.category.name}
                       </Tag>
-                    )}
+                    ) : animal.proposedCategoryName ? (
+                      <Tag color="gold" className="!mr-0">
+                        Новая: {animal.proposedCategoryName}
+                      </Tag>
+                    ) : null}
                     {MODERATION_STATUS[animal.moderationStatus] && (
                       <Tag
                         color={MODERATION_STATUS[animal.moderationStatus].color}

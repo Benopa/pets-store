@@ -35,6 +35,19 @@ describe('AnimalsService.create', () => {
     expect(result.price).toBe(105);
   });
 
+  it('продавец предлагает новую категорию: товар без категории, имя в proposedCategoryName', async () => {
+    const { service, userRepo, categoryRepo } = makeService();
+    userRepo.findOne.mockResolvedValue({ id: 'u1', role: 'seller' });
+    categoryRepo.findOne.mockResolvedValue(null); // такой категории ещё нет
+    const result: any = await service.create(
+      { name: 'Nemo', newCategoryName: 'Рыбки', price: 100 } as any,
+      'u1',
+    );
+    expect(result.category).toBeNull();
+    expect(result.proposedCategoryName).toBe('Рыбки');
+    expect(result.moderationStatus).toBe('pending');
+  });
+
   it('товар админа без магазина — ошибка (магазин обязателен)', async () => {
     const { service, userRepo } = makeService();
     userRepo.findOne.mockResolvedValue({ id: 'admin1', role: 'admin' });

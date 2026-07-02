@@ -29,6 +29,7 @@ const initialState = {
   categories: [],
   categoryId: null,
   search: '',
+  onlyFavorites: false,
   sort: 'name',
   sortBy: 'createdAt',
   order: 'DESC',
@@ -47,6 +48,9 @@ const animalSlice = createSlice({
     },
     setSearch: (state, action) => {
       state.search = action.payload;
+    },
+    setOnlyFavorites: (state, action) => {
+      state.onlyFavorites = action.payload;
     },
     setSort: (state, action) => {
       state.sort = action.payload;
@@ -104,6 +108,12 @@ const animalSlice = createSlice({
     // Модерация — карточка возвращается с новым moderationStatus, обновляем список.
     builder.addCase(approveAnimal.fulfilled, (state, action) => {
       replaceAnimal(state, action.payload);
+      // Если при одобрении создалась новая категория — добавляем её в общий список,
+      // чтобы она сразу появилась в фильтре каталога и форме товара.
+      const cat = action.payload?.category;
+      if (cat && !state.categories.some((c) => c.id === cat.id)) {
+        state.categories.push(cat);
+      }
     });
     builder.addCase(rejectAnimal.fulfilled, (state, action) => {
       replaceAnimal(state, action.payload);
@@ -114,6 +124,6 @@ const animalSlice = createSlice({
   },
 });
 
-export const { setAnimals, setCategoryId, setSearch, setSort, setCurrentAnimal } =
+export const { setAnimals, setCategoryId, setSearch, setOnlyFavorites, setSort, setCurrentAnimal } =
   animalSlice.actions;
 export default animalSlice.reducer;

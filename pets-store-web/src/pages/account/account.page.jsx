@@ -53,7 +53,7 @@ const ROLE_META = {
   moderator: { label: 'Модератор', color: 'cyan' },
   seller: { label: 'Продавец', color: 'gold' },
   buyer: { label: 'Покупатель', color: 'purple' },
-  courier: { label: 'Доставщик', color: 'orange' },
+  courier: { label: 'Курьер', color: 'orange' },
 };
 
 export const AccountPage = () => {
@@ -363,7 +363,7 @@ export const AccountPage = () => {
             key: 'couriers',
             label: (
               <span>
-                <CarOutlined /> Доставщики
+                <CarOutlined /> Курьеры
               </span>
             ),
             children: <CouriersManager />,

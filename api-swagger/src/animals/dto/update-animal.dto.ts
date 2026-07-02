@@ -62,6 +62,17 @@ export class UpdateAnimalDto {
   categoryId?: string;
 
   @ApiProperty({
+    example: 'Рыбки',
+    required: false,
+    description:
+      'Название новой категории, предложенной продавцом. Создаётся при одобрении модератором.',
+  })
+  @IsOptional()
+  @IsString()
+  @MinLength(2)
+  newCategoryName?: string;
+
+  @ApiProperty({
     example: 'a1b2c3d4-0000-0000-0000-000000000000',
     required: false,
     description: 'Магазин товара (id справочника). null — отвязать товар от магазина.',

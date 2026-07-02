@@ -478,11 +478,11 @@ export class OrdersService {
     return order;
   }
 
-  // Заказы для доставщика (только роль courier): попавшие в логистику — готовы к отправке,
+  // Заказы для курьера (только роль courier): попавшие в логистику — готовы к отправке,
   // в доставке или получены. Позиции обогащаем названием товара; в фокусе — адрес доставки.
   async deliveriesForCourier(user: User) {
     if (user.role !== 'courier') {
-      throw new ForbiddenException('Доступно только доставщику');
+      throw new ForbiddenException('Доступно только курьеру');
     }
     const deliveryStatuses = new Set(['ready', 'shipped', 'delivered']);
     const orders = await this.orderRepo.find({ order: { createdAt: 'DESC' } });
@@ -516,11 +516,11 @@ export class OrdersService {
       }));
   }
 
-  // Отметка «передан покупателю» доставщиком — та же логика, что у покупателя «подтвердить
+  // Отметка «передан покупателю» курьером — та же логика, что у покупателя «подтвердить
   // получение»: заказ из доставки (shipped) становится полученным (delivered). Только роль courier.
   async markDeliveredByCourier(id: string, user: User) {
     if (user.role !== 'courier') {
-      throw new ForbiddenException('Доступно только доставщику');
+      throw new ForbiddenException('Доступно только курьеру');
     }
     const order = await this.orderRepo.findOne({ where: { id } });
     if (!order) {

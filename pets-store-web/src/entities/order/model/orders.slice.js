@@ -63,7 +63,7 @@ const ordersSlice = createSlice({
       state.salesLoading = false;
       state.error = action.payload ?? action.error.message;
     });
-    // Заказы доставщика (роль courier): { id, status, address, buyer, items, ... }.
+    // Заказы курьера (роль courier): { id, status, address, buyer, items, ... }.
     builder.addCase(fetchDeliveries.pending, (state) => {
       state.deliveriesLoading = true;
       state.error = null;

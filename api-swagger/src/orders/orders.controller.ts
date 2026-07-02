@@ -45,7 +45,7 @@ export class OrdersController {
     return this.ordersService.commissionDetails(req.user as User);
   }
 
-  // Заказы для доставщика (только роль courier). До ':id', чтобы путь не приняли за id заказа.
+  // Заказы для курьера (только роль courier). До ':id', чтобы путь не приняли за id заказа.
   @Get('deliveries')
   deliveries(@Request() req: { user: { id: string } }) {
     return this.ordersService.deliveriesForCourier(req.user as User);
@@ -112,7 +112,7 @@ export class OrdersController {
     return this.ordersService.confirmPayment(id, req.user as User);
   }
 
-  // Доставщик отмечает заказ переданным покупателю: shipped → delivered (как «подтвердить получение»).
+  // Курьер отмечает заказ переданным покупателю: shipped → delivered (как «подтвердить получение»).
   @Patch(':id/delivered')
   markDelivered(@Param('id') id: string, @Request() req: { user: { id: string } }) {
     return this.ordersService.markDeliveredByCourier(id, req.user as User);

@@ -137,6 +137,6 @@ describe('OrdersService — двухшаговая отправка', () => {
       expect.objectContaining({ type: 'order_delivered' }),
     );
     // не курьеру — запрет
-    await expect(service.markDeliveredByCourier('o1', seller)).rejects.toThrow('доставщику');
+    await expect(service.markDeliveredByCourier('o1', seller)).rejects.toThrow('курьеру');
   });
 });

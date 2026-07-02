@@ -48,7 +48,7 @@ export const fetchCommissionDetails = createAsyncThunk(
   },
 );
 
-// Заказы для доставщика (роль courier): готовы к отправке / в доставке / получены, с адресами.
+// Заказы для курьера (роль courier): готовы к отправке / в доставке / получены, с адресами.
 export const fetchDeliveries = createAsyncThunk(
   'orders/fetchDeliveries',
   async (_, { getState, rejectWithValue }) => {
@@ -125,7 +125,7 @@ export const markShipped = createAsyncThunk(
     patchOrder(`/api/orders/${orderId}/ship`, getState, rejectWithValue),
 );
 
-// Доставщик отмечает заказ переданным покупателю (статус → delivered).
+// Курьер отмечает заказ переданным покупателю (статус → delivered).
 export const markDelivered = createAsyncThunk(
   'orders/markDelivered',
   (orderId, { getState, rejectWithValue }) =>

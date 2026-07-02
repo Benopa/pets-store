@@ -57,8 +57,15 @@ export class Animal {
   @Column({ type: 'varchar', nullable: true })
   rejectReason?: string | null;
 
-  @ManyToOne(() => Category, (category) => category.animals, { eager: true })
-  category!: Category;
+  // Название новой категории, предложенной продавцом при создании товара. Пока товар на
+  // модерации, категория ещё не создана: модератор при одобрении либо создаёт её (и она
+  // попадает в общий список), либо назначает существующую. После разрешения — null.
+  @Column({ type: 'varchar', nullable: true })
+  proposedCategoryName?: string | null;
+
+  // Категория может отсутствовать, пока товар с предложенной новой категорией ждёт модерации.
+  @ManyToOne(() => Category, (category) => category.animals, { eager: true, nullable: true })
+  category?: Category | null;
 
   @ManyToOne(() => User, (user) => user.animals, { eager: true })
   owner!: User;

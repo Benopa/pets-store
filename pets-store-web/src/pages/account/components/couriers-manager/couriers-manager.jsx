@@ -25,8 +25,7 @@ import { fetchCouriers, createCourier, deleteCourier } from '@/entities/courier'
 
 const { Title, Text } = Typography;
 
-const fullName = (c) =>
-  [c.firstName, c.lastName].filter(Boolean).join(' ') || c.email || 'Доставщик';
+const fullName = (c) => [c.firstName, c.lastName].filter(Boolean).join(' ') || c.email || 'Курьер';
 
 const formatDate = (iso) => {
   if (!iso) return '—';
@@ -57,15 +56,15 @@ export const CouriersManager = () => {
     );
     if (createCourier.fulfilled.match(result)) {
       form.resetFields();
-      message.success('Доставщик создан');
+      message.success('Курьер создан');
     } else {
-      message.error(result.payload || 'Не удалось создать доставщика');
+      message.error(result.payload || 'Не удалось создать курьера');
     }
   };
 
   const confirmDelete = (c) => {
     modal.confirm({
-      title: `Удалить доставщика «${fullName(c)}»?`,
+      title: `Удалить курьера «${fullName(c)}»?`,
       content: 'Он потеряет доступ к разделу доставки.',
       okText: 'Удалить',
       okButtonProps: { danger: true },
@@ -73,9 +72,9 @@ export const CouriersManager = () => {
       onOk: async () => {
         const result = await dispatch(deleteCourier(c.id));
         if (deleteCourier.fulfilled.match(result)) {
-          message.success('Доставщик удалён');
+          message.success('Курьер удалён');
         } else {
-          message.error(result.payload || 'Не удалось удалить доставщика');
+          message.error(result.payload || 'Не удалось удалить курьера');
         }
       },
     });
@@ -86,17 +85,17 @@ export const CouriersManager = () => {
       {/* Создание */}
       <Card className="border border-stone-200" styles={{ body: { padding: 24 } }}>
         <Title level={4} className="!mt-0 !mb-1">
-          Новый доставщик
+          Новый курьер
         </Title>
         <Text type="secondary" className="block mb-4">
-          Доставщик входит по email и паролю, видит каталог и работает с разделом «Доставка».
+          Курьер входит по email и паролю, видит каталог и работает с разделом «Доставка».
         </Text>
         <Form form={form} layout="vertical" requiredMark={false} onFinish={handleFinish}>
           <Form.Item name="name" label="Имя" rules={[{ required: true, message: 'Введите имя' }]}>
             <Input
               prefix={<UserOutlined className="text-stone-400" />}
               size="large"
-              placeholder="Имя доставщика"
+              placeholder="Имя курьера"
             />
           </Form.Item>
           <Form.Item
@@ -135,7 +134,7 @@ export const CouriersManager = () => {
               icon={<PlusOutlined />}
               loading={creating}
             >
-              Создать доставщика
+              Создать курьера
             </Button>
           </Form.Item>
         </Form>
@@ -144,7 +143,7 @@ export const CouriersManager = () => {
       {/* Существующие */}
       <Card className="border border-stone-200" styles={{ body: { padding: 24 } }}>
         <Title level={4} className="!mt-0 !mb-4">
-          Доставщики{' '}
+          Курьеры{' '}
           <Text type="secondary" className="text-base">
             · {items.length}
           </Text>
@@ -152,7 +151,7 @@ export const CouriersManager = () => {
         {loading ? (
           <Skeleton active paragraph={{ rows: 3 }} />
         ) : items.length === 0 ? (
-          <Empty description="Доставщиков пока нет" className="!my-8" />
+          <Empty description="Курьеров пока нет" className="!my-8" />
         ) : (
           <List
             itemLayout="horizontal"
