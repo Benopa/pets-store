@@ -1,17 +1,23 @@
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { Alert, Button, Card, DatePicker, Form, Input, Segmented, Typography } from 'antd';
+import { App, Button, Card, DatePicker, Form, Input, Segmented, Typography } from 'antd';
 import { MailOutlined, LockOutlined, UserOutlined, CalendarOutlined } from '@ant-design/icons';
 import { registerAuth } from '@/entities/auth';
 
 const { Title, Text } = Typography;
 
+// Перевод сообщений бэкенда на русский (бэк отдаёт их по-английски).
+const RU_REGISTER_ERRORS = {
+  'Email already in use': 'Пользователь с таким email уже зарегистрирован',
+};
+
 export const RegisterPage = () => {
   const dispatch = useDispatch();
-  const { loading, error } = useSelector((state) => state.auth);
+  const { loading } = useSelector((state) => state.auth);
+  const { notification } = App.useApp();
 
-  const handleFinish = ({ firstName, lastName, birthDate, email, password, role }) => {
-    dispatch(
+  const handleFinish = async ({ firstName, lastName, birthDate, email, password, role }) => {
+    const result = await dispatch(
       registerAuth({
         firstName,
         lastName,
@@ -22,6 +28,18 @@ export const RegisterPage = () => {
         role,
       }),
     );
+    if (registerAuth.rejected.match(result)) {
+      notification.error({
+        message: 'Ошибка регистрации',
+        // Переводим известное сообщение бэка на русский, иначе — общий текст.
+        description:
+          RU_REGISTER_ERRORS[result.payload] ||
+          'Не удалось зарегистрироваться. Попробуйте ещё раз.',
+        // По центру экрана, чтобы сразу привлечь внимание.
+        placement: 'top',
+        top: Math.max(24, window.innerHeight / 2 - 60),
+      });
+    }
   };
 
   return (
@@ -121,8 +139,6 @@ export const RegisterPage = () => {
               size="large"
             />
           </Form.Item>
-
-          {error && <Alert type="error" message={error} showIcon className="mb-4" />}
 
           <Form.Item className="!mb-0 !mt-6">
             <Button type="primary" htmlType="submit" size="large" block loading={loading}>

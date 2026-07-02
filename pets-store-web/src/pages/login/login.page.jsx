@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { Alert, Button, Card, Form, Input, Typography } from 'antd';
+import { App, Button, Card, Form, Input, Typography } from 'antd';
 import { MailOutlined, LockOutlined } from '@ant-design/icons';
 import { loginAuth } from '@/entities/auth';
 
@@ -8,10 +8,21 @@ const { Title, Text } = Typography;
 
 export const LoginPage = () => {
   const dispatch = useDispatch();
-  const { loading, error } = useSelector((state) => state.auth);
+  const { loading } = useSelector((state) => state.auth);
+  const { notification } = App.useApp();
 
-  const handleFinish = ({ email, password }) => {
-    dispatch(loginAuth({ email, password }));
+  const handleFinish = async ({ email, password }) => {
+    const result = await dispatch(loginAuth({ email, password }));
+    // Бэкенд отдаёт 401; из соображений безопасности не уточняем, что именно неверно.
+    if (loginAuth.rejected.match(result)) {
+      notification.error({
+        message: 'Ошибка входа',
+        description: 'Неправильный логин или пароль',
+        // По центру экрана, чтобы сразу привлечь внимание.
+        placement: 'top',
+        top: Math.max(24, window.innerHeight / 2 - 60),
+      });
+    }
   };
 
   return (
@@ -56,8 +67,6 @@ export const LoginPage = () => {
               size="large"
             />
           </Form.Item>
-
-          {error && <Alert type="error" message={error} showIcon className="mb-4" />}
 
           <Form.Item className="!mb-0 !mt-6">
             <Button type="primary" htmlType="submit" size="large" block loading={loading}>
