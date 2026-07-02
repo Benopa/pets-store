@@ -17,7 +17,7 @@ services:
       POSTGRES_PASSWORD: ${DB_PASSWORD:-app}
       POSTGRES_DB: ${DB_NAME:-petstore}
     volumes:
-      - db-data:/var/lib/postgresql/data
+      - db-data:/var/lib/postgresql
       # Дамп схемы+данных. Выполняется ТОЛЬКО при первой инициализации
       # пустого тома db-data. Чтобы перезалить дамп — снести том (см. DEPLOY.md).
       - ./db/init:/docker-entrypoint-initdb.d:ro
