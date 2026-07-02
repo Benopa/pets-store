@@ -69,6 +69,16 @@ export class User {
   @Column({ type: 'varchar', default: 'buyer' })
   role!: UserRole;
 
+  // Сброс пароля: храним sha256-хеш токена (не сам токен) и срок его действия.
+  // Как и passwordHash — select:false + @Exclude, чтобы не выбирались и не утекали в ответах.
+  @Exclude()
+  @Column({ type: 'varchar', nullable: true, select: false })
+  resetTokenHash?: string | null;
+
+  @Exclude()
+  @Column({ type: 'timestamptz', nullable: true, select: false })
+  resetTokenExpires?: Date | null;
+
   @OneToMany(() => Animal, (animal) => animal.owner)
   animals!: Animal[];
 

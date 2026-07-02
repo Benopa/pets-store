@@ -97,6 +97,23 @@ export class UsersService {
       .getOne();
   }
 
+  // Сброс пароля: колонки select:false, поэтому грузим их явно через addSelect.
+  async findByResetTokenHash(tokenHash: string): Promise<User | null> {
+    return this.usersRepo
+      .createQueryBuilder('user')
+      .addSelect(['user.resetTokenHash', 'user.resetTokenExpires'])
+      .where('user.resetTokenHash = :tokenHash', { tokenHash })
+      .getOne();
+  }
+
+  async setResetToken(userId: string, tokenHash: string, expires: Date): Promise<void> {
+    await this.usersRepo.update(userId, { resetTokenHash: tokenHash, resetTokenExpires: expires });
+  }
+
+  async clearResetToken(userId: string): Promise<void> {
+    await this.usersRepo.update(userId, { resetTokenHash: null, resetTokenExpires: null });
+  }
+
   async findByIdWithPassword(id: string): Promise<User> {
     const user = await this.usersRepo
       .createQueryBuilder('user')

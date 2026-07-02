@@ -68,6 +68,12 @@ export const LoginPage = () => {
             />
           </Form.Item>
 
+          <div className="text-right -mt-2">
+            <Link to="/forgot-password" className="text-[#9850fd] text-sm">
+              Забыли пароль?
+            </Link>
+          </div>
+
           <Form.Item className="!mb-0 !mt-6">
             <Button type="primary" htmlType="submit" size="large" block loading={loading}>
               Войти

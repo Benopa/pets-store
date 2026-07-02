@@ -6,6 +6,7 @@ import {
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import * as bcrypt from 'bcrypt';
+import { createHash, randomBytes } from 'crypto';
 
 import { UsersService } from '../users/users.service';
 import { CartItem, User } from '../entities/user.entity';
@@ -56,6 +57,37 @@ export class AuthService {
   async login(email: string, password: string) {
     const user = await this.validateUser(email, password);
     return this.issueTokens(user);
+  }
+
+  // Запрос восстановления пароля. Не раскрываем, существует ли email:
+  // если пользователя нет — просто возвращаем resetUrl: null.
+  // Dev-stub: письмо не отправляем, ссылку логируем и возвращаем в ответе.
+  async forgotPassword(email: string): Promise<{ resetUrl: string | null }> {
+    const user = await this.usersService.findByEmail(email);
+    if (!user) {
+      return { resetUrl: null };
+    }
+    // Сырой токен уходит в ссылку, в БД кладём только его sha256-хеш.
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expires = new Date(Date.now() + 60 * 60 * 1000); // ссылка живёт 1 час
+    await this.usersService.setResetToken(user.id, tokenHash, expires);
+
+    const frontendUrl = process.env.FRONTEND_URL ?? 'http://localhost:5173';
+    const resetUrl = `${frontendUrl}/reset-password?token=${token}`;
+    console.log(`[password-reset] ${email} → ${resetUrl}`);
+    return { resetUrl };
+  }
+
+  async resetPassword(token: string, newPassword: string): Promise<{ status: string }> {
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const user = await this.usersService.findByResetTokenHash(tokenHash);
+    if (!user || !user.resetTokenExpires || user.resetTokenExpires.getTime() < Date.now()) {
+      throw new BadRequestException('Ссылка недействительна или устарела');
+    }
+    await this.usersService.update(user.id, { password: newPassword });
+    await this.usersService.clearResetToken(user.id);
+    return { status: 'ok' };
   }
 
   // Безопасное представление пользователя для личного кабинета (без passwordHash).

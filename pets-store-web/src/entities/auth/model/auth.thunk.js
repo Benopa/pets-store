@@ -35,6 +35,34 @@ export const registerAuth = createAsyncThunk(
   },
 );
 
+// Восстановление пароля. Бэкенд не раскрывает, существует ли email:
+// всегда 200, resetUrl приходит только в dev-stub (реального письма пока нет).
+export const forgotPassword = createAsyncThunk(
+  'auth/forgotPassword',
+  async ({ email }, { rejectWithValue }) => {
+    try {
+      const response = await axios.post('/api/auth/forgot-password', { email });
+      return response.data; // { resetUrl: string | null }
+    } catch (err) {
+      const message = err.response?.data?.message;
+      return rejectWithValue(Array.isArray(message) ? message.join(', ') : message || err.message);
+    }
+  },
+);
+
+export const resetPassword = createAsyncThunk(
+  'auth/resetPassword',
+  async ({ token, password }, { rejectWithValue }) => {
+    try {
+      const response = await axios.post('/api/auth/reset-password', { token, password });
+      return response.data;
+    } catch (err) {
+      const message = err.response?.data?.message;
+      return rejectWithValue(Array.isArray(message) ? message.join(', ') : message || err.message);
+    }
+  },
+);
+
 export const fetchMe = createAsyncThunk('auth/fetchMe', async (_, { getState }) => {
   const token = getState().auth?.accessToken || localStorage.getItem('token');
   const response = await axios.get('/api/auth/me', {
