@@ -1,8 +1,9 @@
 import { Link } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
-import { App, Button, Card, DatePicker, Form, Input, Segmented, Typography } from 'antd';
-import { MailOutlined, LockOutlined, UserOutlined, CalendarOutlined } from '@ant-design/icons';
+import { App, Button, Card, Form, Input, Segmented, Typography } from 'antd';
+import { MailOutlined, LockOutlined, UserOutlined } from '@ant-design/icons';
 import { registerAuth } from '@/entities/auth';
+import { BirthDateField } from './components/birth-date-field';
 
 const { Title, Text } = Typography;
 
@@ -105,15 +106,7 @@ export const RegisterPage = () => {
             label="Дата рождения"
             rules={[{ required: true, message: 'Укажите дату рождения' }]}
           >
-            <DatePicker
-              className="w-full"
-              size="large"
-              format="DD.MM.YYYY"
-              placeholder="дд.мм.гггг"
-              suffixIcon={<CalendarOutlined className="text-stone-400" />}
-              // запрещаем выбор будущих дат
-              disabledDate={(current) => current && current.valueOf() > Date.now()}
-            />
+            <BirthDateField />
           </Form.Item>
 
           <Form.Item
