@@ -26,16 +26,22 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-[calc(100vh-8rem)] grid place-items-center px-4">
-      <Card className="w-full max-w-sm shadow-lg" styles={{ body: { padding: 32 } }}>
+    <div className="min-h-screen md:min-h-[calc(100vh-8rem)] grid place-items-center bg-white md:bg-transparent -mx-4 -my-8 md:mx-0 md:my-0 px-4 py-8">
+      <Card
+        className="w-full max-w-sm border-0! md:border! shadow-none md:shadow-lg bg-transparent! md:bg-white! rounded-none! md:rounded-lg!"
+        classNames={{ body: 'p-0! md:p-8!' }}
+      >
         <div className="text-center mb-6">
+          <div className="md:hidden mb-2 text-lg font-semibold text-stone-800">Pets Store</div>
           <span className="grid place-items-center w-14 h-14 rounded-2xl bg-[#9850fd] text-white text-2xl mx-auto mb-3">
             🐾
           </span>
           <Title level={3} className="!mb-1">
             Вход
           </Title>
-          <Text type="secondary">Войдите, чтобы посмотреть каталог</Text>
+          <Text type="secondary" className="hidden md:block">
+            Войдите, чтобы посмотреть каталог
+          </Text>
         </div>
 
         <Form layout="vertical" requiredMark={false} onFinish={handleFinish}>
