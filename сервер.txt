@@ -3,3 +3,10 @@ ssh vera@76.13.155.91
 
 RhwPLpt!s-0MV2uWixIL
 
+eval "$(ssh-agent -s)"
+
+ssh-add <путь до ключа>
+
+git pull
+
+/.deploy.sh --rebuild 

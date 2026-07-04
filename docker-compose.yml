@@ -1,11 +1,22 @@
-# Prod-стек Pets Store: postgres + nest-api + nginx(spa).
-# Запуск:  ./deploy.sh   (или вручную: docker compose up -d --build)
+# =============================================================================
+# Pets Store — прод-стек ЗА СОБСТВЕННЫМ Caddy на webdev-ai.com (80/443 + HTTPS)
+# =============================================================================
+# Это готовая версия /home/vera/pets-store/docker-compose.yml для случая,
+# когда домен webdev-ai.com переключён с signal-app на pets-store.
 #
-# Переменные читаются из файла .env рядом с этим compose-файлом
-# (создаётся из .env.deploy.example скриптом deploy.sh).
+# Отличия от исходного compose Веры:
+#   1. web: вместо публикации порта наружу (ports: 8080:80) — только expose: 80
+#      (наружу трафик отдаёт Caddy, а не nginx напрямую).
+#   2. Добавлен сервис caddy: слушает 80/443, сам получает TLS-сертификат
+#      Let's Encrypt для webdev-ai.com и проксирует всё в web:80
+#      (nginx pets-store уже разруливает SPA + /api + /uploads + /docs).
+#   3. Добавлены тома caddy-data / caddy-config (сертификаты переживают перезапуск).
 #
-# Имя проекта зафиксировано => свои сеть/тома/имена контейнеров
-# (pets-store-*), полностью изолированные от других стеков на сервере.
+# ВАЖНО: рядом с этим файлом должен лежать Caddyfile (см. инструкцию, Шаг 4).
+# Порты 80/443 должны быть свободны — сначала гасится signal (инструкция, Шаг 1).
+#
+# Имя проекта зафиксировано => свои сеть/тома/имена контейнеров (pets-store-*),
+# изолированные от других стеков на сервере.
 name: pets-store
 
 services:
@@ -63,15 +74,30 @@ services:
     restart: unless-stopped
     depends_on:
       - api
+    # Наружу порт больше НЕ публикуем — доступ идёт через сервис caddy ниже.
+    expose:
+      - '80'
+    networks: [petnet]
+
+  # Reverse-proxy + автоматический HTTPS для webdev-ai.com.
+  caddy:
+    image: caddy:2
+    restart: unless-stopped
+    depends_on: [web]
     ports:
-      # Дефолт 8080: порт 80 на сервере обычно занят (Caddy/др. reverse-proxy).
-      # Поменяй WEB_PORT в .env под свободный порт или поставь за внешний прокси.
-      - '${WEB_PORT:-8080}:80'
+      - '80:80'
+      - '443:443'
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy-data:/data
+      - caddy-config:/config
     networks: [petnet]
 
 volumes:
   db-data:
   uploads:
+  caddy-data:
+  caddy-config:
 
 networks:
   petnet:
