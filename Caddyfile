@@ -1,0 +1,10 @@
+webdev-ai.com {
+    encode gzip
+    reverse_proxy web:80
+}
+
+# www → без www
+www.webdev-ai.com {
+    redir https://webdev-ai.com{uri} permanent
+}
+
