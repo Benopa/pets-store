@@ -26,7 +26,7 @@ export const LoginPage = () => {
   };
 
   return (
-    <div className="min-h-screen md:min-h-[calc(100vh-8rem)] grid place-items-center bg-white md:bg-transparent -mx-4 -my-8 md:mx-0 md:my-0 px-4 py-8">
+    <div className="min-h-dvh md:min-h-[calc(100dvh-8rem)] grid place-items-center bg-white md:bg-transparent -mx-4 -my-8 md:mx-0 md:my-0 px-6 py-8">
       <Card
         className="w-full max-w-sm border-0! md:border! shadow-none md:shadow-lg bg-transparent! md:bg-white! rounded-none! md:rounded-lg!"
         classNames={{ body: 'p-0! md:p-8!' }}
