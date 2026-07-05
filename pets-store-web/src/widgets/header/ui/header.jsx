@@ -1,4 +1,4 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import { Layout, Space, Badge, Button, Dropdown, Avatar } from 'antd';
 import {
@@ -23,6 +23,9 @@ const { Header: AntHeader } = Layout;
 export const Header = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const location = useLocation();
+  // На входе/регистрации на мобильном шапку прячем целиком — брендинг вынесен в блок над формой.
+  const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
   const accessToken = useSelector((state) => state.auth.accessToken);
   const role = useSelector((state) => state.auth.role);
   const cartCount = useSelector((state) =>
@@ -99,7 +102,9 @@ export const Header = () => {
   };
 
   return (
-    <AntHeader className="!bg-white !px-0 !h-16 !leading-none border-b border-stone-200 sticky top-0 z-10 shadow-sm">
+    <AntHeader
+      className={`${isAuthPage ? 'max-md:hidden ' : ''}!bg-white !px-0 !h-16 !leading-none border-b border-stone-200 sticky top-0 z-10 shadow-sm`}
+    >
       <div className="max-w-5xl mx-auto px-4 h-16 flex items-center justify-between">
         <Link to="/" className="flex items-center gap-2">
           <span className="grid place-items-center w-9 h-9 rounded-xl bg-[#9850fd] text-white text-lg">
