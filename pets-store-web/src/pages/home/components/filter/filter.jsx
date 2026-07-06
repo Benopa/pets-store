@@ -3,7 +3,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { Input, Select, Button, Drawer, Badge } from 'antd';
 import {
   SearchOutlined,
-  AppstoreOutlined,
+  FunnelPlotFilled,
   SortAscendingOutlined,
   HeartOutlined,
   HeartFilled,
@@ -88,7 +88,7 @@ export const Filter = () => {
             size="large"
             onChange={(id) => dispatch(setCategoryId(id ?? null))}
             allowClear
-            suffixIcon={<AppstoreOutlined />}
+            suffixIcon={<FunnelPlotFilled />}
             options={optionsCategories}
           />
           {canFavorite && (
@@ -137,7 +137,7 @@ export const Filter = () => {
               <Button
                 size="large"
                 type={categoryId != null ? 'primary' : 'default'}
-                icon={<AppstoreOutlined />}
+                icon={<FunnelPlotFilled />}
                 onClick={() => setOpenDrawer('category')}
                 aria-label="Фильтр по категории"
               />
