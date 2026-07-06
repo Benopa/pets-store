@@ -11,6 +11,7 @@ import { addToCart } from '@/entities/cart';
 import { toggleFavorite } from '@/entities/favorites';
 import { startProductChat } from '@/entities/chat';
 import { API_ORIGIN } from '@/shared/config';
+import { useIsMobile } from '@/shared/lib';
 import { setCurrentAnimal } from '../model/animal.slice';
 
 const { Text } = Typography;
@@ -47,6 +48,7 @@ export const sellerNameOf = (animal) =>
 export const AnimalCard = ({ animal, readOnly = false }) => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { message } = App.useApp();
   const liked = useSelector((state) => state.favorites.ids.includes(animal.id));
   const userId = useSelector((state) => state.auth.userId);
@@ -119,7 +121,9 @@ export const AnimalCard = ({ animal, readOnly = false }) => {
             <Tooltip title={liked ? 'Убрать из избранного' : 'В избранное'}>
               <button
                 onClick={handleToggleLike}
-                className="absolute top-2 right-2 grid place-items-center w-8 h-8 rounded-full bg-white/90 border-0 cursor-pointer shadow-sm backdrop-blur"
+                className={`absolute top-2 right-2 grid place-items-center rounded-full bg-white/90 border-0 cursor-pointer shadow-sm backdrop-blur ${
+                  isMobile ? 'h-10 w-10 text-xl' : 'h-8 w-8'
+                }`}
               >
                 {liked ? (
                   <HeartFilled style={{ color: '#eb2f96' }} />
@@ -166,7 +170,11 @@ export const AnimalCard = ({ animal, readOnly = false }) => {
           <div className="flex items-center gap-2">
             {canMessageSeller && (
               <Tooltip title="Написать продавцу">
-                <Button icon={<MessageOutlined />} onClick={handleWriteSeller} />
+                <Button
+                  size={isMobile ? 'large' : 'middle'}
+                  icon={<MessageOutlined style={isMobile ? { fontSize: 20 } : undefined} />}
+                  onClick={handleWriteSeller}
+                />
               </Tooltip>
             )}
             {isOwnProduct ? (
@@ -175,8 +183,9 @@ export const AnimalCard = ({ animal, readOnly = false }) => {
               </Tag>
             ) : (
               <Button
+                size={isMobile ? 'large' : 'middle'}
                 type="primary"
-                icon={<ShoppingCartOutlined />}
+                icon={<ShoppingCartOutlined style={isMobile ? { fontSize: 20 } : undefined} />}
                 onClick={handleAddToCart}
                 disabled={outOfStock}
               >

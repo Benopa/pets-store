@@ -9,6 +9,7 @@ import {
 import { addToCart } from '@/entities/cart';
 import { toggleFavorite } from '@/entities/favorites';
 import { startProductChat } from '@/entities/chat';
+import { useIsMobile } from '@/shared/lib';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
@@ -46,6 +47,7 @@ export const HomePage = () => {
   const role = useSelector((state) => state.auth.role);
   const userId = useSelector((state) => state.auth.userId);
   const cartItems = useSelector((state) => state.cart.items);
+  const isMobile = useIsMobile();
   // Персонал (админ/модератор/курьер) не покупает — каталог в режиме просмотра
   // (без «В корзину»/избранного).
   const readOnly = role === 'admin' || role === 'moderator' || role === 'courier';
@@ -111,6 +113,83 @@ export const HomePage = () => {
     navigate('/chat');
   };
 
+  // Десктопный футер: подписи на кнопках, цена на «В корзину», отдельная кнопка «Закрыть».
+  const desktopFooter = readOnly
+    ? [
+        <Button key="close" onClick={closeModal}>
+          Закрыть
+        </Button>,
+      ]
+    : [
+        <Button
+          key="fav"
+          icon={liked ? <HeartFilled style={{ color: '#eb2f96' }} /> : <HeartOutlined />}
+          onClick={handleToggleFav}
+        >
+          {liked ? 'В избранном' : 'В избранное'}
+        </Button>,
+        canMessageSeller && (
+          <Button key="chat" icon={<MessageOutlined />} onClick={handleWriteSeller}>
+            Написать продавцу
+          </Button>
+        ),
+        <Button key="close" onClick={closeModal}>
+          Закрыть
+        </Button>,
+        !isOwnProduct && (
+          <Button
+            key="buy"
+            type="primary"
+            icon={<ShoppingCartOutlined />}
+            onClick={handleAddToCart}
+            disabled={currentAnimal?.stock === 0}
+          >
+            {currentAnimal?.stock === 0
+              ? 'Нет в наличии'
+              : `В корзину · ${currentAnimal ? Number(currentAnimal.price) : 0} ₽`}
+          </Button>
+        ),
+      ];
+
+  // Мобильный футер: избранное и «написать продавцу» — только иконки, «В корзину» без цены,
+  // всё в одну строку. Кнопки «Закрыть» нет — модалка закрывается крестиком сверху.
+  const mobileFooter = readOnly ? null : (
+    <div className="flex items-center gap-2">
+      <Button
+        size="large"
+        icon={
+          liked ? (
+            <HeartFilled style={{ color: '#eb2f96', fontSize: 20 }} />
+          ) : (
+            <HeartOutlined style={{ fontSize: 20 }} />
+          )
+        }
+        onClick={handleToggleFav}
+        aria-label={liked ? 'В избранном' : 'В избранное'}
+      />
+      {canMessageSeller && (
+        <Button
+          size="large"
+          icon={<MessageOutlined style={{ fontSize: 20 }} />}
+          onClick={handleWriteSeller}
+          aria-label="Написать продавцу"
+        />
+      )}
+      {!isOwnProduct && (
+        <Button
+          size="large"
+          type="primary"
+          icon={<ShoppingCartOutlined style={{ fontSize: 20 }} />}
+          onClick={handleAddToCart}
+          disabled={currentAnimal?.stock === 0}
+          className="flex-1"
+        >
+          {currentAnimal?.stock === 0 ? 'Нет в наличии' : 'В корзину'}
+        </Button>
+      )}
+    </div>
+  );
+
   return (
     <div>
       <div className="flex items-end justify-between mb-6">
@@ -161,44 +240,7 @@ export const HomePage = () => {
         onCancel={closeModal}
         width={780}
         title={null}
-        footer={
-          readOnly
-            ? [
-                <Button key="close" onClick={closeModal}>
-                  Закрыть
-                </Button>,
-              ]
-            : [
-                <Button
-                  key="fav"
-                  icon={liked ? <HeartFilled style={{ color: '#eb2f96' }} /> : <HeartOutlined />}
-                  onClick={handleToggleFav}
-                >
-                  {liked ? 'В избранном' : 'В избранное'}
-                </Button>,
-                canMessageSeller && (
-                  <Button key="chat" icon={<MessageOutlined />} onClick={handleWriteSeller}>
-                    Написать продавцу
-                  </Button>
-                ),
-                <Button key="close" onClick={closeModal}>
-                  Закрыть
-                </Button>,
-                !isOwnProduct && (
-                  <Button
-                    key="buy"
-                    type="primary"
-                    icon={<ShoppingCartOutlined />}
-                    onClick={handleAddToCart}
-                    disabled={currentAnimal?.stock === 0}
-                  >
-                    {currentAnimal?.stock === 0
-                      ? 'Нет в наличии'
-                      : `В корзину · ${currentAnimal ? Number(currentAnimal.price) : 0} ₽`}
-                  </Button>
-                ),
-              ]
-        }
+        footer={isMobile ? mobileFooter : desktopFooter}
       >
         {currentAnimal && (
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
