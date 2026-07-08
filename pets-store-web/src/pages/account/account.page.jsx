@@ -35,6 +35,7 @@ import {
 import { fetchMe, updateProfile, changePassword } from '@/entities/auth';
 import { fetchOrders, fetchSales, fetchCommission } from '@/entities/order';
 import { API_ORIGIN } from '@/shared/config';
+import { useIsMobile } from '@/shared/lib';
 import { ContactForm } from './components/contact-form';
 import { FavoritesGrid } from './components/favorites-grid';
 import { PurchaseHistory } from './components/purchase-history';
@@ -58,6 +59,7 @@ const ROLE_META = {
 
 export const AccountPage = () => {
   const dispatch = useDispatch();
+  const isMobile = useIsMobile();
   const { message } = App.useApp();
   const [passwordForm] = Form.useForm();
   const [profitOpen, setProfitOpen] = useState(false);
@@ -115,6 +117,9 @@ export const AccountPage = () => {
   const spent = sumTotals(orders);
   const salesCount = sales.length;
   const revenue = sumTotals(sales);
+  // На мобильной уменьшаем сами числа в статистике (покупки/избранное/потрачено),
+  // подписи оставляем без изменений.
+  const statValueStyle = isMobile ? { fontSize: 18 } : undefined;
 
   const handleRoleChange = async (value) => {
     if (value === role) return;
@@ -141,71 +146,78 @@ export const AccountPage = () => {
     }
   };
 
-  const securityTab = (
-    <Card className="border border-stone-200" styles={{ body: { padding: 24 } }}>
-      <Form
-        form={passwordForm}
-        layout="vertical"
-        requiredMark={false}
-        onFinish={handleChangePassword}
-        className="max-w-md"
+  const securityForm = (
+    <Form
+      form={passwordForm}
+      layout="vertical"
+      requiredMark={false}
+      onFinish={handleChangePassword}
+      className="max-w-md"
+    >
+      <Form.Item
+        name="currentPassword"
+        label="Текущий пароль"
+        rules={[{ required: true, message: 'Введите текущий пароль' }]}
       >
-        <Form.Item
-          name="currentPassword"
-          label="Текущий пароль"
-          rules={[{ required: true, message: 'Введите текущий пароль' }]}
-        >
-          <Input.Password
-            prefix={<LockOutlined className="text-stone-400" />}
-            size="large"
-            autoComplete="current-password"
-            placeholder="••••••••"
-          />
-        </Form.Item>
-        <Form.Item
-          name="newPassword"
-          label="Новый пароль"
-          rules={[
-            { required: true, message: 'Введите новый пароль' },
-            { min: 6, message: 'Минимум 6 символов' },
-          ]}
-        >
-          <Input.Password
-            prefix={<LockOutlined className="text-stone-400" />}
-            size="large"
-            autoComplete="new-password"
-            placeholder="••••••••"
-          />
-        </Form.Item>
-        <Form.Item
-          name="confirmPassword"
-          label="Повторите новый пароль"
-          dependencies={['newPassword']}
-          rules={[
-            { required: true, message: 'Повторите новый пароль' },
-            ({ getFieldValue }) => ({
-              validator(_, value) {
-                if (!value || getFieldValue('newPassword') === value) {
-                  return Promise.resolve();
-                }
-                return Promise.reject(new Error('Пароли не совпадают'));
-              },
-            }),
-          ]}
-        >
-          <Input.Password
-            prefix={<LockOutlined className="text-stone-400" />}
-            size="large"
-            autoComplete="new-password"
-            placeholder="••••••••"
-          />
-        </Form.Item>
-        <Form.Item className="!mb-0">
-          <Button type="primary" htmlType="submit" size="large" loading={changingPassword}>
-            Сменить пароль
-          </Button>
-        </Form.Item>
-      </Form>
+        <Input.Password
+          prefix={<LockOutlined className="text-stone-400" />}
+          size="large"
+          autoComplete="current-password"
+          placeholder="••••••••"
+        />
+      </Form.Item>
+      <Form.Item
+        name="newPassword"
+        label="Новый пароль"
+        rules={[
+          { required: true, message: 'Введите новый пароль' },
+          { min: 6, message: 'Минимум 6 символов' },
+        ]}
+      >
+        <Input.Password
+          prefix={<LockOutlined className="text-stone-400" />}
+          size="large"
+          autoComplete="new-password"
+          placeholder="••••••••"
+        />
+      </Form.Item>
+      <Form.Item
+        name="confirmPassword"
+        label="Повторите новый пароль"
+        dependencies={['newPassword']}
+        rules={[
+          { required: true, message: 'Повторите новый пароль' },
+          ({ getFieldValue }) => ({
+            validator(_, value) {
+              if (!value || getFieldValue('newPassword') === value) {
+                return Promise.resolve();
+              }
+              return Promise.reject(new Error('Пароли не совпадают'));
+            },
+          }),
+        ]}
+      >
+        <Input.Password
+          prefix={<LockOutlined className="text-stone-400" />}
+          size="large"
+          autoComplete="new-password"
+          placeholder="••••••••"
+        />
+      </Form.Item>
+      <Form.Item className="!mb-0">
+        <Button type="primary" htmlType="submit" size="large" loading={changingPassword}>
+          Сменить пароль
+        </Button>
+      </Form.Item>
+    </Form>
+  );
+
+  // На мобильной поля показываем прямо на странице (без карточки), на десктопе — в Card.
+  const securityTab = isMobile ? (
+    securityForm
+  ) : (
+    <Card className="border border-stone-200" styles={{ body: { padding: 24 } }}>
+      {securityForm}
     </Card>
   );
 
@@ -278,6 +290,7 @@ export const AccountPage = () => {
                       title={isSeller ? 'Продаж' : 'Покупок'}
                       value={isSeller ? salesCount : purchasesCount}
                       prefix={<ShoppingOutlined className="text-stone-400" />}
+                      valueStyle={statValueStyle}
                     />
                   </Col>
                   {/* Избранное — только у покупателя; у продавца его нет. */}
@@ -287,6 +300,7 @@ export const AccountPage = () => {
                         title="В избранном"
                         value={favCount}
                         prefix={<HeartOutlined className="text-stone-400" />}
+                        valueStyle={statValueStyle}
                       />
                     </Col>
                   )}
@@ -295,6 +309,7 @@ export const AccountPage = () => {
                       title={isSeller ? 'Выручка' : 'Потрачено'}
                       value={isSeller ? revenue : spent}
                       suffix="₽"
+                      valueStyle={statValueStyle}
                     />
                   </Col>
                 </Row>
