@@ -12,6 +12,7 @@ import {
 } from '@ant-design/icons';
 import { CATEGORY_COLOR, MODERATION_STATUS, deleteAnimal, resubmitAnimal } from '@/entities/animal';
 import { API_ORIGIN } from '@/shared/config';
+import { useIsMobile } from '@/shared/lib';
 import { ProductEditModal } from '../product-edit-modal';
 
 const { Text } = Typography;
@@ -26,7 +27,10 @@ const ownerLabel = (owner) =>
 
 export const ProductsManager = () => {
   const dispatch = useDispatch();
+  const isMobile = useIsMobile();
   const { message, modal } = App.useApp();
+  // На мобильной иконки действий крупнее на 25% (база темы 16px → 20px).
+  const actionIconStyle = isMobile ? { fontSize: 20 } : undefined;
 
   const animals = useSelector((state) => state.animal.animals);
   const { role, userId } = useSelector((state) => state.auth);
@@ -130,13 +134,17 @@ export const ProductsManager = () => {
                   </Tooltip>
                 ) : null,
                 <Tooltip title="Редактировать" key="edit">
-                  <Button type="text" icon={<EditOutlined />} onClick={() => openEdit(animal)} />
+                  <Button
+                    type="text"
+                    icon={<EditOutlined style={actionIconStyle} />}
+                    onClick={() => openEdit(animal)}
+                  />
                 </Tooltip>,
                 <Tooltip title="Удалить" key="del">
                   <Button
                     type="text"
                     danger
-                    icon={<DeleteOutlined />}
+                    icon={<DeleteOutlined style={actionIconStyle} />}
                     onClick={() => confirmDelete(animal)}
                   />
                 </Tooltip>,
@@ -197,11 +205,7 @@ export const ProductsManager = () => {
                       {[
                         animal.species,
                         animal.ageMonths != null && `${animal.ageMonths} мес.`,
-                        animal.price != null &&
-                          (animal.basePrice != null &&
-                          Number(animal.basePrice) !== Number(animal.price)
-                            ? `${Number(animal.price)} ₽ (ваша цена ${Number(animal.basePrice)} ₽)`
-                            : `${Number(animal.price)} ₽`),
+                        animal.price != null && `${Number(animal.price)} ₽`,
                         animal.stock != null && `Остаток: ${animal.stock} шт.`,
                       ]
                         .filter(Boolean)

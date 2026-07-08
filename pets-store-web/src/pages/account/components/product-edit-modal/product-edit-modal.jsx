@@ -8,12 +8,19 @@ import {
   Input,
   InputNumber,
   Modal,
+  Popover,
   Select,
   Spin,
   Tooltip,
   Upload,
 } from 'antd';
-import { PlusOutlined, DeleteOutlined, StarOutlined, LoadingOutlined } from '@ant-design/icons';
+import {
+  PlusOutlined,
+  DeleteOutlined,
+  StarOutlined,
+  LoadingOutlined,
+  InfoCircleOutlined,
+} from '@ant-design/icons';
 import {
   COMMISSION_RATE,
   priceWithCommission,
@@ -25,6 +32,7 @@ import {
 } from '@/entities/animal';
 import { fetchShops } from '@/entities/shop';
 import { API_ORIGIN } from '@/shared/config';
+import { useIsMobile } from '@/shared/lib';
 
 // Префикс значения Select для ещё не созданной (предложенной) категории: value = `new:Рыбки`.
 // На submit такое значение уходит как newCategoryName, а не categoryId.
@@ -66,10 +74,33 @@ const PhotoTile = ({ src, isCover, onCover, onDelete, disabled }) => (
   </div>
 );
 
+// Подпись поля с иконкой-подсказкой «i»: серый пояснительный текст прячем в поповер,
+// который открывается по тапу на иконку рядом с названием поля (компактная мобильная форма).
+// Если пояснения нет — возвращаем просто подпись.
+const LabelWithInfo = ({ label, info }) =>
+  info ? (
+    <span className="inline-flex items-center gap-1">
+      {label}
+      <Popover content={<div className="max-w-[240px] text-xs">{info}</div>} trigger="click">
+        <button
+          type="button"
+          aria-label="Подсказка"
+          className="inline-flex cursor-pointer border-0 bg-transparent p-0 text-stone-400"
+          onClick={(e) => e.preventDefault()}
+        >
+          <InfoCircleOutlined />
+        </button>
+      </Popover>
+    </span>
+  ) : (
+    label
+  );
+
 // Монтируется только когда открыто → начальное состояние берётся из props через
 // инициализаторы useState (без эффектов).
 const ProductEditModalInner = ({ animal, onClose }) => {
   const dispatch = useDispatch();
+  const isMobile = useIsMobile();
   const { message } = App.useApp();
   const categories = useSelector((state) => state.animal.categories);
   const role = useSelector((state) => state.auth.role);
@@ -271,6 +302,52 @@ const ProductEditModalInner = ({ animal, onClose }) => {
         onDelete: () => removeLocal(i),
       }));
 
+  const photoTiles = tiles.map((t) => (
+    <PhotoTile
+      key={t.key}
+      src={t.src}
+      isCover={t.isCover}
+      onCover={t.onCover}
+      onDelete={t.onDelete}
+      disabled={photoBusy}
+    />
+  ));
+
+  const uploadButton = (
+    <Upload
+      showUploadList={false}
+      accept="image/*"
+      multiple={!isEdit}
+      disabled={photoBusy}
+      beforeUpload={isEdit ? addServer : addLocal}
+    >
+      <button
+        type="button"
+        disabled={photoBusy}
+        className="grid h-20 w-20 cursor-pointer place-items-center rounded-lg border border-dashed border-stone-300 bg-transparent text-stone-400 hover:border-[#9850fd] hover:text-[#9850fd] disabled:cursor-not-allowed"
+      >
+        {photoBusy ? <Spin indicator={<LoadingOutlined spin />} size="small" /> : <PlusOutlined />}
+      </button>
+    </Upload>
+  );
+
+  // Серые пояснения к полям. На мобильной прячем их в иконку «i» рядом с подписью поля,
+  // на десктопе показываем как обычный серый текст под полем (help/extra).
+  const photoInfo = isEdit
+    ? 'Наведите на фото, чтобы сделать обложкой или удалить'
+    : 'Первое фото станет обложкой — наведите, чтобы выбрать другое';
+  const categoryInfo = 'Нет нужной? Впишите свою внизу списка — её подтвердит модератор.';
+  const shopInfo =
+    'Товар принадлежит магазину — он продаёт его онлайн (доставка). Сервисный сбор сайта берётся при оформлении заказа.';
+  const priceInfo =
+    commissionRate > 0 && catalogPrice != null ? (
+      <>
+        Комиссия сайта {Math.round(commissionRate * 100)}% (+
+        {Math.round((catalogPrice - basePrice) * 100) / 100} ₽) · в каталоге:{' '}
+        <span className="font-medium text-stone-700">{catalogPrice} ₽</span>
+      </>
+    ) : null;
+
   return (
     <Modal
       open
@@ -290,44 +367,24 @@ const ProductEditModalInner = ({ animal, onClose }) => {
         className="!mt-4"
       >
         <Form.Item
-          label="Фотографии"
-          help={
-            isEdit
-              ? 'Наведите на фото, чтобы сделать обложкой или удалить'
-              : 'Первое фото станет обложкой — наведите, чтобы выбрать другое'
-          }
+          label={isMobile ? <LabelWithInfo label="Фотографии" info={photoInfo} /> : 'Фотографии'}
+          help={isMobile ? undefined : photoInfo}
         >
-          <div className="flex flex-wrap gap-3">
-            {tiles.map((t) => (
-              <PhotoTile
-                key={t.key}
-                src={t.src}
-                isCover={t.isCover}
-                onCover={t.onCover}
-                onDelete={t.onDelete}
-                disabled={photoBusy}
-              />
-            ))}
-            <Upload
-              showUploadList={false}
-              accept="image/*"
-              multiple={!isEdit}
-              disabled={photoBusy}
-              beforeUpload={isEdit ? addServer : addLocal}
-            >
-              <button
-                type="button"
-                disabled={photoBusy}
-                className="grid h-20 w-20 cursor-pointer place-items-center rounded-lg border border-dashed border-stone-300 bg-transparent text-stone-400 hover:border-[#9850fd] hover:text-[#9850fd] disabled:cursor-not-allowed"
-              >
-                {photoBusy ? (
-                  <Spin indicator={<LoadingOutlined spin />} size="small" />
-                ) : (
-                  <PlusOutlined />
-                )}
-              </button>
-            </Upload>
-          </div>
+          {isMobile ? (
+            // Мобильная: фото в одну строку с горизонтальным скроллом, кнопка «+»
+            // закреплена справа и не участвует в прокрутке.
+            <div className="flex items-start gap-3">
+              <div className="min-w-0 flex-1 overflow-x-auto">
+                <div className="flex w-max gap-3 pb-1">{photoTiles}</div>
+              </div>
+              <div className="shrink-0">{uploadButton}</div>
+            </div>
+          ) : (
+            <div className="flex flex-wrap gap-3">
+              {photoTiles}
+              {uploadButton}
+            </div>
+          )}
         </Form.Item>
 
         <div className="flex gap-4">
@@ -344,13 +401,11 @@ const ProductEditModalInner = ({ animal, onClose }) => {
           </Form.Item>
           <Form.Item
             name="categoryId"
-            label="Категория"
+            label={isMobile ? <LabelWithInfo label="Категория" info={categoryInfo} /> : 'Категория'}
             className="flex-1"
             rules={[{ required: true, message: 'Выберите категорию' }]}
             extra={
-              <span className="text-xs text-stone-500">
-                Нет нужной? Впишите свою внизу списка — её подтвердит модератор.
-              </span>
+              isMobile ? undefined : <span className="text-xs text-stone-500">{categoryInfo}</span>
             }
           >
             <Select
@@ -384,18 +439,21 @@ const ProductEditModalInner = ({ animal, onClose }) => {
         {isShopProduct && (
           <Form.Item
             name="shopId"
-            label="Магазин"
+            label={
+              isMobile && shops.length > 0 ? (
+                <LabelWithInfo label="Магазин" info={shopInfo} />
+              ) : (
+                'Магазин'
+              )
+            }
             rules={[{ required: true, message: 'Выберите магазин для товара' }]}
             extra={
               shops.length === 0 ? (
                 <span className="text-xs text-amber-600">
                   Сначала добавьте магазин во вкладке «Магазины»
                 </span>
-              ) : (
-                <span className="text-xs text-stone-500">
-                  Товар принадлежит магазину — он продаёт его онлайн (доставка). Сервисный сбор
-                  сайта берётся при оформлении заказа.
-                </span>
+              ) : isMobile ? undefined : (
+                <span className="text-xs text-stone-500">{shopInfo}</span>
               )
             }
           >
@@ -421,16 +479,23 @@ const ProductEditModalInner = ({ animal, onClose }) => {
           </Form.Item>
           <Form.Item
             name="price"
-            label={commissionRate > 0 ? 'Ваша цена (₽)' : 'Цена (₽)'}
+            label={
+              isMobile ? (
+                <LabelWithInfo
+                  label={commissionRate > 0 ? 'Ваша цена (₽)' : 'Цена (₽)'}
+                  info={priceInfo}
+                />
+              ) : commissionRate > 0 ? (
+                'Ваша цена (₽)'
+              ) : (
+                'Цена (₽)'
+              )
+            }
             className="flex-1"
             rules={[{ required: true, message: 'Укажите цену' }]}
             extra={
-              commissionRate > 0 && catalogPrice != null ? (
-                <span className="text-xs text-stone-500">
-                  Комиссия сайта {Math.round(commissionRate * 100)}% (+
-                  {Math.round((catalogPrice - basePrice) * 100) / 100} ₽) · в каталоге:{' '}
-                  <span className="font-medium text-stone-700">{catalogPrice} ₽</span>
-                </span>
+              isMobile ? undefined : priceInfo ? (
+                <span className="text-xs text-stone-500">{priceInfo}</span>
               ) : null
             }
           >
