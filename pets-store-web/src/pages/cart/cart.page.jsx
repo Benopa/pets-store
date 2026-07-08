@@ -11,6 +11,7 @@ import {
   Input,
   Modal,
   Radio,
+  Select,
   Tag,
   Tooltip,
   Typography,
@@ -35,6 +36,7 @@ import { setCartQty, removeFromCart, clearCart, checkout } from '@/entities/cart
 import { confirmOrderPayment } from '@/entities/order';
 import { updateProfile } from '@/entities/auth';
 import { API_ORIGIN } from '@/shared/config';
+import { useIsMobile } from '@/shared/lib';
 
 const { Title, Text } = Typography;
 
@@ -77,10 +79,17 @@ const QtyStepper = ({ value, max, onChange }) => {
   );
 };
 
-// Модальное окно «Оформление заказа»: проверка чека и данных доставки с возможностью их изменить.
-// Управляемый компонент — значения и обработчики приходят из CartPage.
-const CheckoutModal = ({
-  open,
+// Опции способа оплаты (метка с иконкой). Общие для Radio (десктоп) и Select (мобильная версия).
+const PAYMENT_OPTIONS = [
+  { value: 'card', label: 'Банковская карта', icon: <CreditCardOutlined /> },
+  { value: 'sbp', label: 'СБП', icon: <BankOutlined /> },
+  { value: 'cash', label: 'При получении', icon: <WalletOutlined /> },
+];
+
+// Тело оформления заказа: чек, способ оплаты, адрес, комментарий, промокод и итоги.
+// Используется и в модалке (десктоп), и на полной странице (мобильная версия).
+// На мобильной способ оплаты выбирается через Select, на десктопе — через Radio.
+const CheckoutBody = ({
   lines,
   subtotal,
   delivery,
@@ -92,14 +101,158 @@ const CheckoutModal = ({
   payment,
   comment,
   promo,
-  submitting,
   onAddress,
   onPayment,
   onComment,
   onPromo,
-  onClose,
-  onConfirm,
+  isMobile,
 }) => (
+  <div className="py-1">
+    {/* Чек */}
+    <Text strong className="mb-2 block">
+      Товары в чеке ({itemCount})
+    </Text>
+    <div className="flex max-h-52 flex-col gap-2 overflow-auto pr-1">
+      {lines.map(({ animal, qty }) => (
+        <div key={animal.id} className="flex items-center gap-3">
+          {imageOf(animal) ? (
+            <img
+              src={imageOf(animal)}
+              alt={animal.name}
+              className="h-11 w-11 shrink-0 rounded-lg object-cover"
+            />
+          ) : (
+            <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-stone-100 text-stone-300">
+              ♥
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <Text className="block truncate">{animal.name}</Text>
+            <Text type="secondary" className="text-xs">
+              {qty} × {Number(animal.price)} ₽
+            </Text>
+          </div>
+          <Text strong>{(Number(animal.price) * qty).toFixed(1)} ₽</Text>
+        </div>
+      ))}
+    </div>
+
+    <Divider className="!my-4" />
+
+    {/* Способ оплаты */}
+    <Text strong className="mb-1 block">
+      Способ оплаты
+    </Text>
+    {isMobile ? (
+      <Select
+        size="large"
+        className="mb-4 w-full"
+        value={payment}
+        onChange={onPayment}
+        options={PAYMENT_OPTIONS.map((o) => ({
+          value: o.value,
+          label: (
+            <span className="inline-flex items-center gap-2">
+              {o.icon}
+              {o.label}
+            </span>
+          ),
+        }))}
+      />
+    ) : (
+      <Radio.Group value={payment} onChange={(e) => onPayment(e.target.value)} className="mb-4">
+        {PAYMENT_OPTIONS.map((o) => (
+          <Radio.Button key={o.value} value={o.value}>
+            {o.icon} {o.label}
+          </Radio.Button>
+        ))}
+      </Radio.Group>
+    )}
+
+    {/* Адрес доставки */}
+    <Text strong className="mb-1 block">
+      Адрес доставки{' '}
+      {payment === 'cash' && (
+        <Text type="secondary" className="text-xs">
+          (необязательно)
+        </Text>
+      )}
+    </Text>
+    <Input
+      size="large"
+      prefix={<EnvironmentOutlined className="text-stone-400" />}
+      placeholder="Город, улица, дом, квартира"
+      value={address}
+      onChange={(e) => onAddress(e.target.value)}
+    />
+
+    <Text strong className="mb-1 mt-4 block">
+      Комментарий к заказу
+    </Text>
+    <Input.TextArea
+      rows={2}
+      placeholder="Например: позвонить за час до доставки"
+      value={comment}
+      onChange={(e) => onComment(e.target.value)}
+    />
+
+    <Text strong className="mb-1 mt-4 block">
+      Промокод
+    </Text>
+    <Input
+      size="large"
+      prefix={<TagOutlined className="text-stone-400" />}
+      placeholder="Например, PROMO50"
+      value={promo}
+      onChange={(e) => onPromo(e.target.value)}
+      status={promo.trim() && discount === 0 ? 'warning' : undefined}
+    />
+    {discount > 0 ? (
+      <Text className="mt-1 block text-xs" style={{ color: '#52c41a' }}>
+        <CheckCircleOutlined className="mr-1" />
+        Промокод применён — скидка 50% на заказ
+      </Text>
+    ) : promo.trim() ? (
+      <Text type="secondary" className="mt-1 block text-xs">
+        Промокод не найден
+      </Text>
+    ) : null}
+
+    <Divider className="!my-4" />
+
+    {/* Итоги */}
+    <div className="mb-1 flex items-center justify-between">
+      <Text type="secondary">Товары</Text>
+      <Text>{subtotal.toFixed(1)} ₽</Text>
+    </div>
+    <div className="mb-1 flex items-center justify-between">
+      <Text type="secondary">Доставка</Text>
+      <Text>{delivery === 0 ? 'Бесплатно' : `${delivery} ₽`}</Text>
+    </div>
+    <div className="mb-1 flex items-center justify-between">
+      <Text type="secondary">Сервисный сбор (8%)</Text>
+      <Text>{serviceFee.toFixed(1)} ₽</Text>
+    </div>
+    {discount > 0 && (
+      <div className="mb-1 flex items-center justify-between">
+        <Text type="secondary">Скидка по промокоду</Text>
+        <Text style={{ color: '#52c41a' }}>−{discount.toFixed(1)} ₽</Text>
+      </div>
+    )}
+    <div className="mt-2 flex items-center justify-between">
+      <Text strong className="text-lg">
+        Итого
+      </Text>
+      <Text strong className="text-xl">
+        {total.toFixed(1)} ₽
+      </Text>
+    </div>
+  </div>
+);
+
+// Модальное окно «Оформление заказа» (десктоп): проверка чека и данных доставки.
+// Управляемый компонент — значения и обработчики приходят из CartPage.
+const CheckoutModal = ({ open, total, submitting, onClose, onConfirm, ...bodyProps }) => (
   <Modal
     open={open}
     onCancel={onClose}
@@ -111,139 +264,14 @@ const CheckoutModal = ({
     confirmLoading={submitting}
     okButtonProps={{ size: 'large', icon: <CheckCircleOutlined /> }}
   >
-    <div className="py-1">
-      {/* Чек */}
-      <Text strong className="mb-2 block">
-        Товары в чеке ({itemCount})
-      </Text>
-      <div className="flex max-h-52 flex-col gap-2 overflow-auto pr-1">
-        {lines.map(({ animal, qty }) => (
-          <div key={animal.id} className="flex items-center gap-3">
-            {imageOf(animal) ? (
-              <img
-                src={imageOf(animal)}
-                alt={animal.name}
-                className="h-11 w-11 shrink-0 rounded-lg object-cover"
-              />
-            ) : (
-              <div className="grid h-11 w-11 shrink-0 place-items-center rounded-lg bg-stone-100 text-stone-300">
-                ♥
-              </div>
-            )}
-            <div className="min-w-0 flex-1">
-              <Text className="block truncate">{animal.name}</Text>
-              <Text type="secondary" className="text-xs">
-                {qty} × {Number(animal.price)} ₽
-              </Text>
-            </div>
-            <Text strong>{(Number(animal.price) * qty).toFixed(1)} ₽</Text>
-          </div>
-        ))}
-      </div>
-
-      <Divider className="!my-4" />
-
-      {/* Способ оплаты */}
-      <Text strong className="mb-1 block">
-        Способ оплаты
-      </Text>
-      <Radio.Group value={payment} onChange={(e) => onPayment(e.target.value)} className="mb-4">
-        <Radio.Button value="card">
-          <CreditCardOutlined /> Банковская карта
-        </Radio.Button>
-        <Radio.Button value="sbp">
-          <BankOutlined /> СБП
-        </Radio.Button>
-        <Radio.Button value="cash">
-          <WalletOutlined /> При получении
-        </Radio.Button>
-      </Radio.Group>
-
-      {/* Адрес доставки */}
-      <Text strong className="mb-1 block">
-        Адрес доставки{' '}
-        {payment === 'cash' && (
-          <Text type="secondary" className="text-xs">
-            (необязательно)
-          </Text>
-        )}
-      </Text>
-      <Input
-        size="large"
-        prefix={<EnvironmentOutlined className="text-stone-400" />}
-        placeholder="Город, улица, дом, квартира"
-        value={address}
-        onChange={(e) => onAddress(e.target.value)}
-      />
-
-      <Text strong className="mb-1 mt-4 block">
-        Комментарий к заказу
-      </Text>
-      <Input.TextArea
-        rows={2}
-        placeholder="Например: позвонить за час до доставки"
-        value={comment}
-        onChange={(e) => onComment(e.target.value)}
-      />
-
-      <Text strong className="mb-1 mt-4 block">
-        Промокод
-      </Text>
-      <Input
-        size="large"
-        prefix={<TagOutlined className="text-stone-400" />}
-        placeholder="Например, PROMO50"
-        value={promo}
-        onChange={(e) => onPromo(e.target.value)}
-        status={promo.trim() && discount === 0 ? 'warning' : undefined}
-      />
-      {discount > 0 ? (
-        <Text className="mt-1 block text-xs" style={{ color: '#52c41a' }}>
-          <CheckCircleOutlined className="mr-1" />
-          Промокод применён — скидка 50% на заказ
-        </Text>
-      ) : promo.trim() ? (
-        <Text type="secondary" className="mt-1 block text-xs">
-          Промокод не найден
-        </Text>
-      ) : null}
-
-      <Divider className="!my-4" />
-
-      {/* Итоги */}
-      <div className="mb-1 flex items-center justify-between">
-        <Text type="secondary">Товары</Text>
-        <Text>{subtotal.toFixed(1)} ₽</Text>
-      </div>
-      <div className="mb-1 flex items-center justify-between">
-        <Text type="secondary">Доставка</Text>
-        <Text>{delivery === 0 ? 'Бесплатно' : `${delivery} ₽`}</Text>
-      </div>
-      <div className="mb-1 flex items-center justify-between">
-        <Text type="secondary">Сервисный сбор (8%)</Text>
-        <Text>{serviceFee.toFixed(1)} ₽</Text>
-      </div>
-      {discount > 0 && (
-        <div className="mb-1 flex items-center justify-between">
-          <Text type="secondary">Скидка по промокоду</Text>
-          <Text style={{ color: '#52c41a' }}>−{discount.toFixed(1)} ₽</Text>
-        </div>
-      )}
-      <div className="mt-2 flex items-center justify-between">
-        <Text strong className="text-lg">
-          Итого
-        </Text>
-        <Text strong className="text-xl">
-          {total.toFixed(1)} ₽
-        </Text>
-      </div>
-    </div>
+    <CheckoutBody total={total} {...bodyProps} isMobile={false} />
   </Modal>
 );
 
 export const CartPage = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { message, modal } = App.useApp();
 
   const items = useSelector((state) => state.cart.items);
@@ -398,6 +426,51 @@ export const CartPage = () => {
             </Button>
           </Empty>
         </Card>
+      </div>
+    );
+  }
+
+  // Мобильная версия: оформление заказа — не модалка, а полноценная страница (без крестика).
+  // Кнопки «Назад» и «Подтвердить заказ» (без цены) — в одну строку внизу.
+  if (isMobile && checkoutOpen) {
+    return (
+      <div>
+        <Title level={2} className="!mb-4 !font-light">
+          Оформление заказа
+        </Title>
+        <CheckoutBody
+          isMobile
+          lines={selectedLines}
+          subtotal={subtotal}
+          delivery={delivery}
+          serviceFee={serviceFee}
+          discount={discount}
+          total={total}
+          itemCount={itemCount}
+          address={address}
+          payment={payment}
+          comment={comment}
+          promo={promo}
+          onAddress={setAddress}
+          onPayment={setPayment}
+          onComment={setComment}
+          onPromo={setPromo}
+        />
+        <div className="mt-6 flex gap-3">
+          <Button size="large" className="flex-1" onClick={() => setCheckoutOpen(false)}>
+            Назад
+          </Button>
+          <Button
+            size="large"
+            type="primary"
+            className="flex-1"
+            icon={<CheckCircleOutlined />}
+            loading={submitting}
+            onClick={submitCheckout}
+          >
+            Подтвердить заказ
+          </Button>
+        </div>
       </div>
     );
   }
@@ -564,27 +637,29 @@ export const CartPage = () => {
         </Card>
       </div>
 
-      <CheckoutModal
-        open={checkoutOpen}
-        lines={selectedLines}
-        subtotal={subtotal}
-        delivery={delivery}
-        serviceFee={serviceFee}
-        discount={discount}
-        total={total}
-        itemCount={itemCount}
-        address={address}
-        payment={payment}
-        comment={comment}
-        promo={promo}
-        submitting={submitting}
-        onAddress={setAddress}
-        onPayment={setPayment}
-        onComment={setComment}
-        onPromo={setPromo}
-        onClose={() => setCheckoutOpen(false)}
-        onConfirm={submitCheckout}
-      />
+      {!isMobile && (
+        <CheckoutModal
+          open={checkoutOpen}
+          lines={selectedLines}
+          subtotal={subtotal}
+          delivery={delivery}
+          serviceFee={serviceFee}
+          discount={discount}
+          total={total}
+          itemCount={itemCount}
+          address={address}
+          payment={payment}
+          comment={comment}
+          promo={promo}
+          submitting={submitting}
+          onAddress={setAddress}
+          onPayment={setPayment}
+          onComment={setComment}
+          onPromo={setPromo}
+          onClose={() => setCheckoutOpen(false)}
+          onConfirm={submitCheckout}
+        />
+      )}
     </div>
   );
 };
