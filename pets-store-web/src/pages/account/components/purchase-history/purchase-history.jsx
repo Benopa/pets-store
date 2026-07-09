@@ -89,11 +89,11 @@ const OptionList = ({ options, value, onSelect }) => (
           type="button"
           onClick={() => onSelect(option.value)}
           className={`flex items-center justify-between rounded-lg px-3 py-3 text-left text-base transition-colors ${
-            active ? 'bg-stone-100 font-medium text-stone-900' : 'text-stone-600'
+            active ? 'bg-[#f1e9fe] font-semibold text-stone-900' : 'text-stone-600'
           }`}
         >
           {option.label}
-          {active && <CheckOutlined className="text-stone-900" />}
+          {active && <CheckOutlined className="text-[#9850fd]" />}
         </button>
       );
     })}

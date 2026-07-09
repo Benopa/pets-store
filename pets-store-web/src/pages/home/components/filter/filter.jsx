@@ -25,6 +25,10 @@ const SORT_OPTIONS = [
 // считаем, что пользователь ничего не выбирал, и не подсвечиваем кнопку.
 const DEFAULT_SORT = SORT_OPTIONS[0].value;
 
+// Сентинел «Все категории» для десктопного Select: antd не показывает null
+// как выбранное значение, а в сторе отсутствие фильтра — это categoryId = null.
+const ALL_CATEGORIES = 'all';
+
 // Список вариантов внутри мобильного Drawer: выбранный подсвечен фоном и галочкой,
 // клик выбирает вариант и закрывает шторку.
 const OptionList = ({ options, value, onSelect }) => (
@@ -37,11 +41,11 @@ const OptionList = ({ options, value, onSelect }) => (
           type="button"
           onClick={() => onSelect(option.value)}
           className={`flex items-center justify-between rounded-lg px-3 py-3 text-left text-base transition-colors ${
-            active ? 'bg-stone-100 font-medium text-stone-900' : 'text-stone-600'
+            active ? 'bg-[#f1e9fe] font-semibold text-stone-900' : 'text-stone-600'
           }`}
         >
           {option.label}
-          {active && <CheckOutlined className="text-stone-900" />}
+          {active && <CheckOutlined className="text-[#9850fd]" />}
         </button>
       );
     })}
@@ -81,15 +85,16 @@ export const Filter = () => {
             className="sm:w-64"
             size="large"
           />
+          {/* «Все категории» — явный пункт вместо пустого плейсхолдера: у фильтра,
+              как и у сортировки, всегда есть выбранное значение, и оно подсвечивается
+              фиолетовым в выпадающем списке. */}
           <Select
-            value={categoryId}
-            placeholder="Выбери категорию"
+            value={categoryId ?? ALL_CATEGORIES}
             className="sm:w-52"
             size="large"
-            onChange={(id) => dispatch(setCategoryId(id ?? null))}
-            allowClear
+            onChange={(id) => dispatch(setCategoryId(id === ALL_CATEGORIES ? null : id))}
             suffixIcon={<FunnelPlotFilled />}
-            options={optionsCategories}
+            options={[{ value: ALL_CATEGORIES, label: 'Все категории' }, ...optionsCategories]}
           />
           {canFavorite && (
             <Button
