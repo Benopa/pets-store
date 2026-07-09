@@ -79,12 +79,14 @@ export function counterparty(chat, user) {
   if (chat.kind === 'buyer-seller') {
     return chat.buyerId === user?.id
       ? {
-          name: displayName(chat.seller),
-          sub: sub || 'Продавец',
-          tag: 'Продавец',
+          // Товар магазина продаёт магазин — диалог ведётся от его имени
+          // (chat.shopName — серверный снапшот названия), а не от продавца-человека.
+          name: chat.shopName || displayName(chat.seller),
+          sub: sub || (chat.shopName ? 'Магазин' : 'Продавец'),
+          tag: chat.shopName ? 'Магазин' : 'Продавец',
           color: '#9850fd',
           icon: 'shop',
-          avatar: chat.seller?.avatar || null,
+          avatar: chat.shopName ? null : chat.seller?.avatar || null,
         }
       : {
           name: displayName(chat.buyer),
@@ -127,6 +129,7 @@ export function counterparty(chat, user) {
 
 export const TAG_COLOR = {
   Продавец: 'purple',
+  Магазин: 'purple',
   Покупатель: 'gold',
   Поддержка: 'green',
   Модератор: 'blue',

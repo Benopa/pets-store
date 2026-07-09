@@ -16,13 +16,17 @@ const makeService = () => {
     create: jest.fn((m: unknown) => m),
     createQueryBuilder: jest.fn(),
   };
+  const animalRepo = {
+    findOne: jest.fn(),
+  };
   const usersService = { findById: jest.fn() };
   const service = new ChatService(
     conversationRepo as any,
     messageRepo as any,
+    animalRepo as any,
     usersService as any,
   );
-  return { service, conversationRepo, messageRepo, usersService };
+  return { service, conversationRepo, messageRepo, animalRepo, usersService };
 };
 
 const buyer = { id: 'b1', role: 'buyer' } as any;
@@ -41,6 +45,33 @@ describe('ChatService.findOrCreateConversation — матрица прав', () 
       productName: 'Wolf Chan',
     } as any);
     expect(conv).toMatchObject({ kind: 'buyer-seller', buyerId: 'b1', sellerId: 's1' });
+  });
+
+  it('чат по товару магазина сохраняет название магазина (снапшот)', async () => {
+    const { service, conversationRepo, animalRepo, usersService } = makeService();
+    usersService.findById.mockResolvedValue({ id: 's1', role: 'seller' });
+    animalRepo.findOne.mockResolvedValue({ id: 'an1', shop: { id: 'sh1', name: 'ЗооДом' } });
+    conversationRepo.findOne.mockResolvedValue(null);
+    const conv = await service.findOrCreateConversation(buyer, {
+      kind: 'buyer-seller',
+      sellerId: 's1',
+      animalId: 'an1',
+      productName: 'Wolf Chan',
+    } as any);
+    expect(conv).toMatchObject({ shopName: 'ЗооДом' });
+  });
+
+  it('чат по товару без магазина — shopName пустой', async () => {
+    const { service, conversationRepo, animalRepo, usersService } = makeService();
+    usersService.findById.mockResolvedValue({ id: 's1', role: 'seller' });
+    animalRepo.findOne.mockResolvedValue({ id: 'an1', shop: null });
+    conversationRepo.findOne.mockResolvedValue(null);
+    const conv = await service.findOrCreateConversation(buyer, {
+      kind: 'buyer-seller',
+      sellerId: 's1',
+      animalId: 'an1',
+    } as any);
+    expect(conv.shopName).toBeNull();
   });
 
   it('модератор не может начать buyer-seller чат', async () => {

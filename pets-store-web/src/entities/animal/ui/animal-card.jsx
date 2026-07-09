@@ -39,8 +39,10 @@ export const MODERATION_STATUS = {
   rejected: { label: 'Отклонён', color: 'error' },
 };
 
-// Имя продавца для карточки/чата: ФИО → email → «Продавец».
+// Имя продавца для карточки/чата: товар магазина продаёт магазин — его название;
+// иначе ФИО → email → «Продавец».
 export const sellerNameOf = (animal) =>
+  animal?.shop?.name ||
   [animal?.owner?.firstName, animal?.owner?.lastName].filter(Boolean).join(' ') ||
   animal?.owner?.email ||
   'Продавец';

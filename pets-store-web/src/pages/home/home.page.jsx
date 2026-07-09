@@ -105,6 +105,8 @@ export const HomePage = () => {
     currentAnimal.owner.id !== userId;
   // Свой товар продавец не покупает — кнопку «В корзину» в просмотре не показываем.
   const isOwnProduct = Boolean(currentAnimal?.owner?.id && currentAnimal.owner.id === userId);
+  // Товар магазина продаёт магазин — кнопка и чат ведутся от его имени.
+  const writeSellerLabel = currentAnimal?.shop ? 'Написать магазину' : 'Написать продавцу';
   const handleWriteSeller = () => {
     // Создаём (или открываем существующий) диалог по товару на бэкенде.
     dispatch(
@@ -136,7 +138,7 @@ export const HomePage = () => {
         </Button>,
         canMessageSeller && (
           <Button key="chat" icon={<MessageOutlined />} onClick={handleWriteSeller}>
-            Написать продавцу
+            {writeSellerLabel}
           </Button>
         ),
         <Button key="close" onClick={closeModal}>
@@ -178,7 +180,7 @@ export const HomePage = () => {
           size="large"
           icon={<MessageOutlined style={{ fontSize: 20 }} />}
           onClick={handleWriteSeller}
-          aria-label="Написать продавцу"
+          aria-label={writeSellerLabel}
         />
       )}
       {!isOwnProduct && (

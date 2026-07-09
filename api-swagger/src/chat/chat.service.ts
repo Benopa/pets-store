@@ -9,6 +9,7 @@ import { FindOptionsWhere, IsNull, Repository } from 'typeorm';
 
 import { Conversation } from '../entities/conversation.entity';
 import { ChatAttachment, ChatMessage, ChatSenderRole } from '../entities/chat-message.entity';
+import { Animal } from '../entities/animal.entity';
 import { UserRole } from '../entities/user.entity';
 import { UsersService } from '../users/users.service';
 import { CreateConversationDto } from './dto/create-conversation.dto';
@@ -35,6 +36,8 @@ export class ChatService {
     private readonly conversationRepo: Repository<Conversation>,
     @InjectRepository(ChatMessage)
     private readonly messageRepo: Repository<ChatMessage>,
+    @InjectRepository(Animal)
+    private readonly animalRepo: Repository<Animal>,
     private readonly usersService: UsersService,
   ) {}
 
@@ -109,6 +112,13 @@ export class ChatService {
         if (seller.role === 'moderator' || seller.role === 'courier') {
           throw new BadRequestException('Recipient is not a seller');
         }
+        // Товар магазина: чат ведётся «с магазином» — сохраняем снапшот его названия.
+        // Определяем по animalId на сервере, клиентскому полю не доверяем.
+        let shopName: string | null = null;
+        if (dto.animalId) {
+          const animal = await this.animalRepo.findOne({ where: { id: dto.animalId } });
+          shopName = animal?.shop?.name ?? null;
+        }
         where = {
           kind: dto.kind,
           buyerId: user.id,
@@ -121,6 +131,7 @@ export class ChatService {
           sellerId: dto.sellerId,
           animalId: dto.animalId ?? null,
           productName: dto.productName ?? null,
+          shopName,
         };
         break;
       }
