@@ -9,7 +9,7 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import { addToCart } from '@/entities/cart';
 import { toggleFavorite } from '@/entities/favorites';
-import { startProductChat } from '@/entities/chat';
+import { createConversation } from '@/entities/chat';
 import { API_ORIGIN } from '@/shared/config';
 import { useIsMobile } from '@/shared/lib';
 import { setCurrentAnimal } from '../model/animal.slice';
@@ -52,14 +52,20 @@ export const AnimalCard = ({ animal, readOnly = false }) => {
   const { message } = App.useApp();
   const liked = useSelector((state) => state.favorites.ids.includes(animal.id));
   const userId = useSelector((state) => state.auth.userId);
+  const role = useSelector((state) => state.auth.role);
   const cartQty = useSelector(
     (state) => state.cart.items.find((i) => i.animalId === animal.id)?.quantity ?? 0,
   );
   // Остаток на складе: при 0 — «Нет в наличии», покупка недоступна.
   const stock = animal.stock;
   const outOfStock = stock === 0;
-  // Свой товар продавцу/админу писать некому — кнопку «Написать продавцу» не показываем.
-  const canMessageSeller = !readOnly && animal.owner?.id && animal.owner.id !== userId;
+  // Начать диалог с продавцом может только покупающая сторона (buyer/seller);
+  // свой товар продавцу/админу писать некому — кнопку «Написать продавцу» не показываем.
+  const canMessageSeller =
+    !readOnly &&
+    (role === 'buyer' || role === 'seller') &&
+    animal.owner?.id &&
+    animal.owner.id !== userId;
   // Свой товар продавец не покупает — кнопку «В корзину» на нём скрываем (карточку видно).
   const isOwnProduct = Boolean(animal.owner?.id && animal.owner.id === userId);
 
@@ -86,10 +92,12 @@ export const AnimalCard = ({ animal, readOnly = false }) => {
 
   const handleWriteSeller = (e) => {
     e.stopPropagation();
+    // Создаём (или открываем существующий) диалог по товару на бэкенде.
     dispatch(
-      startProductChat({
+      createConversation({
+        kind: 'buyer-seller',
         sellerId: animal.owner.id,
-        sellerName: sellerNameOf(animal),
+        animalId: animal.id,
         productName: animal.name,
       }),
     );

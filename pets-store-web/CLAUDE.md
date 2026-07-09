@@ -29,7 +29,7 @@ npm run cypress        # Cypress интерактивно
 
 ## Связь с API
 
-- Vite-прокси (`vite.config.js`): запросы на **`/api/*`** проксируются на `http://localhost:3000`, префикс `/api` срезается при проксировании.
+- Vite-прокси (`vite.config.js`): запросы на **`/api/*`** проксируются на `http://localhost:3000`, префикс `/api` срезается при проксировании. WebSocket чата (**`/socket.io`**) проксируется туда же с `ws: true` (без среза префикса); в проде это делает nginx (`nginx.conf`, блок с Upgrade-заголовками).
 - Поэтому в коде запросы идут через axios на `/api/...` (например `axios.get('/api/animals')`), а реальный путь на сервере — без `/api`.
 - **Изображения** животных грузятся напрямую с backend: `http://localhost:3000${img.url}` (прокси не используется), см. `photo-gallery.jsx`.
 - JWT-токен после логина сохраняется в `localStorage` (`token`) и подставляется в заголовок `Authorization: Bearer ...` в thunk'ах.
@@ -45,17 +45,17 @@ npm run cypress        # Cypress интерактивно
 src/
   main.jsx                      # точка входа: ConfigProvider (antd) → Provider (redux) → BrowserRouter
   app/                          # слой app: композиция приложения
-    app.component.jsx           #   роуты + HOC PrivateRoute/GuestRoute/StaffRoute, начальная загрузка
-    store.js                    #   configureStore: { animal, auth, favorites, orders, cart, moderators, shops, notifications, chat }
+    app.component.jsx           #   роуты + HOC PrivateRoute/GuestRoute/StaffRoute/CourierRoute; начальная загрузка + подключение чат-сокета
+    store.js                    #   configureStore: { animal, auth, favorites, orders, cart, moderators, couriers, shops, notifications, chat }
     styles/index.css            #   глобальные стили (Tailwind)
   pages/                        # страницы (композиция entities/widgets)
     home/      # home.page.jsx + components/filter
     account/   # account.page.jsx + components/: contact-form, favorites-grid, purchase-history,
                #   products-manager, product-edit-modal, moderators-manager, stores-manager
-    cart/ login/ register/ moderation/
-    chat/      # chat.page.jsx + components/: chat-list, chat-window; lib/chat-icons — чат поддержки (демо, только фронт)
+    cart/ login/ register/ forgot-password/ reset-password/ moderation/ delivery/
+    chat/      # chat.page.jsx + components/: chat-list, chat-window; lib/chat-icons — реальный чат (WebSocket + REST)
   widgets/
-    header/ui/header.jsx        # шапка (корзина из state.cart, меню «Модерация» для персонала)
+    header/ui/header.jsx        # шапка: корзина, «колокольчик», бейдж чата (selectChatUnreadTotal), меню «Модерация»/«Доставка»
   entities/                     # бизнес-сущности: model (slice+thunks) [+ ui]
     animal/    model/ + ui/ (animal-card, photo-gallery)   # fetchAnimals, approve/reject, CATEGORY_COLOR…
     auth/      model/   # login/register/fetchMe/updateProfile/changePassword/uploadAvatar, logout
@@ -63,8 +63,12 @@ src/
     favorites/ model/   # toggleFavorite → PUT /auth/me/favorites
     order/     model/   # fetchOrders → GET /orders (JWT)
     notification/ model/ # лента уведомлений (JWT): fetchNotifications + mark(All)Read; «колокольчик» в header, polling 30с в app.component
-    chat/      model/   # чат поддержки (демо, БЕЗ бэкенда): slice (мок-чаты, demoRole, selectedId) + helpers + data; страница /chat
+    chat/      model/   # чат (реальный, WebSocket): slice (conversations/messages/selectedId) + thunks (REST /chat/*) +
+               #   chat.socket.js (синглтон socket.io-client, path /socket.io, JWT в handshake; подключается в app.component)
+               #   + helpers (roleInChat/counterparty/formatMessageAt). Сообщения шлются по сокету (emitChatMessage),
+               #   прочтение — REST POST .../read (бэкенд оповещает собеседника по сокету). Бейдж в шапке — selectChatUnreadTotal.
     moderator/ model/   # CRUD модераторов (GET/POST/DELETE /users)
+    courier/   model/   # CRUD курьеров (/users)
     shop/      model/   # CRUD справочника магазинов (/shops)
   shared/                       # переиспользуемое, не привязанное к домену
     api/    # axios + bearer()/errMessage()/authToken()
@@ -73,15 +77,17 @@ src/
 
 ### Состояние (Redux Toolkit)
 
-- Слайсы (`entities/*/model`): `animal`, `auth`, `favorites`, `orders`, `cart`, `moderators`, `shops`. Асинхронные операции — `createAsyncThunk` + `axios` (общий `bearer/errMessage` из `@/shared/api`). Ключи стора неизменны.
+- Слайсы (`entities/*/model`): `animal`, `auth`, `favorites`, `orders`, `cart`, `moderators`, `couriers`, `shops`, `notifications`, `chat`. Асинхронные операции — `createAsyncThunk` + `axios` (общий `bearer/errMessage` из `@/shared/api`). Ключи стора неизменны.
 - **Профиль/избранное/корзина** грузятся с бэкенда через `fetchMe` (диспатчится в `app.component` при наличии токена) и сохраняются на бэкенде — переживают выход/вход.
 - `cart`: `[{animalId, quantity}]`; операции оптимистичны и сразу персистятся (`saveCart`). `checkout` → `POST /orders` → чистит корзину → `fetchOrders` (история).
 - `auth`: `accessToken` (JWT, в т.ч. для заказов), профиль.
+- `chat`: диалоги приходят «сводками» `{conversation, lastMessage, unreadCount}` и хранятся плоско; сообщения — `messages[conversationId]`, грузятся при открытии диалога. Сокет-события (`message:new`, `conversation:read`) диспатчат `messageReceived`/`readReceiptReceived` — «я» (`{id, role}`) в payload передаёт сокет-модуль, т.к. редьюсер не видит `state.auth`.
 
 ### Роутинг и доступ
 
 - `PrivateRoute` пускает на `/` только при наличии `accessToken`, иначе редирект на `/login`.
 - `GuestRoute` оборачивает `/login` и `/register` — если уже залогинен, редиректит на `/`.
+- `StaffRoute` (`/moderation` — модератор/админ) и `CourierRoute` (`/delivery` — курьер): ждут загрузки роли (`fetchMe`), чужих редиректят на `/`.
 - **Регистрация** (`registerAuth`) шлёт `POST /api/auth/register` и при успехе так же кладёт токен в `localStorage` + стор (авто-логин). Роль выбирается `Segmented` (Покупатель/Продавец), дата рождения из antd `DatePicker` приводится к `YYYY-MM-DD` перед отправкой. Ошибки бэкенда (напр. занятый email) пробрасываются через `rejectWithValue`.
 
 ## Стилизация — важно

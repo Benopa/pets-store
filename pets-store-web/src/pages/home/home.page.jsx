@@ -8,7 +8,7 @@ import {
 } from '@/entities/animal';
 import { addToCart } from '@/entities/cart';
 import { toggleFavorite } from '@/entities/favorites';
-import { startProductChat } from '@/entities/chat';
+import { createConversation } from '@/entities/chat';
 import { useIsMobile } from '@/shared/lib';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -96,16 +96,22 @@ export const HomePage = () => {
     if (currentAnimal) dispatch(toggleFavorite(currentAnimal.id));
   };
 
-  // Чужой товар можно обсудить с продавцом; свой — нет.
+  // Чужой товар можно обсудить с продавцом; свой — нет. Диалог начинает только
+  // покупающая сторона (buyer/seller), персоналу кнопка не показывается.
   const canMessageSeller =
-    !readOnly && currentAnimal?.owner?.id && currentAnimal.owner.id !== userId;
+    !readOnly &&
+    (role === 'buyer' || role === 'seller') &&
+    currentAnimal?.owner?.id &&
+    currentAnimal.owner.id !== userId;
   // Свой товар продавец не покупает — кнопку «В корзину» в просмотре не показываем.
   const isOwnProduct = Boolean(currentAnimal?.owner?.id && currentAnimal.owner.id === userId);
   const handleWriteSeller = () => {
+    // Создаём (или открываем существующий) диалог по товару на бэкенде.
     dispatch(
-      startProductChat({
+      createConversation({
+        kind: 'buyer-seller',
         sellerId: currentAnimal.owner.id,
-        sellerName: sellerNameOf(currentAnimal),
+        animalId: currentAnimal.id,
         productName: currentAnimal.name,
       }),
     );

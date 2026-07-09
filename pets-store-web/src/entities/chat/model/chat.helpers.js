@@ -1,6 +1,8 @@
 // Чистые помощники логики чата (без UI). Используются и в slice, и в компонентах.
+// Диалог (conversation) приходит с бэкенда: { id, kind, buyerId, sellerId, moderatorId,
+// buyer, seller, moderator, productName, lastMessage, unreadCount, ... }.
 
-// Базовая роль пользователя в обычном чате (admin приравнивается к moderator).
+// Базовая роль пользователя (admin приравнивается к moderator — сторона «поддержка»).
 export function mineRole(user) {
   if (!user) return 'buyer';
   if (user.role === 'seller') return 'seller';
@@ -9,20 +11,21 @@ export function mineRole(user) {
 }
 
 export function displayName(user) {
-  return `${user?.firstName || ''} ${user?.lastName || ''}`.trim() || 'Гость';
+  return (
+    `${user?.firstName || ''} ${user?.lastName || ''}`.trim() ||
+    (user?.email ? user.email.split('@')[0] : '') ||
+    'Гость'
+  );
 }
 
-// Роль текущего пользователя именно в этом чате (в admin-moderator различаем admin/moderator).
+// «Сторона» текущего пользователя именно в этом чате — зеркалит ChatService.sideOf.
+// Сообщение рисуется справа, если message.senderRole === roleInChat(chat, me).
 export function roleInChat(chat, user) {
   if (!user) return 'buyer';
   if (chat.kind === 'admin-moderator') return user.role === 'admin' ? 'admin' : 'moderator';
-  return mineRole(user);
-}
-
-// Непрочитанные для роли = сообщения после её указателя, отправленные не ею.
-export function chatUnread(chat, role) {
-  const r = (chat.read && chat.read[role]) || 0;
-  return chat.messages.slice(r).filter((m) => m.from !== role).length;
+  if (chat.buyerId === user.id) return 'buyer';
+  if (chat.sellerId === user.id) return 'seller';
+  return 'moderator';
 }
 
 export function formatSize(bytes) {
@@ -32,25 +35,18 @@ export function formatSize(bytes) {
   return `${(bytes / 1024 / 1024).toFixed(1)} МБ`;
 }
 
-// Какие чаты видит данный пользователь.
-export function visibleChatsFor(chats, user) {
-  const r = user.role;
-  if (r === 'admin') {
-    return chats.filter(
-      (c) =>
-        c.kind === 'buyer-support' || c.kind === 'seller-support' || c.kind === 'admin-moderator',
-    );
-  }
-  if (r === 'moderator') {
-    return chats.filter(
-      (c) =>
-        c.kind === 'buyer-support' ||
-        c.kind === 'seller-support' ||
-        (c.kind === 'admin-moderator' && c.moderatorId === user.id),
-    );
-  }
-  if (r === 'seller') return chats.filter((c) => c.seller && c.seller.id === user.id);
-  return chats.filter((c) => c.buyer && c.buyer.id === user.id);
+// Время/дата сообщения: сегодня — только время, вчера — «Вчера HH:mm», старше — дата и время.
+export function formatMessageAt(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const time = d.toLocaleTimeString('ru-RU', { hour: '2-digit', minute: '2-digit' });
+  const today = new Date();
+  if (d.toDateString() === today.toDateString()) return time;
+  const yesterday = new Date(today);
+  yesterday.setDate(today.getDate() - 1);
+  if (d.toDateString() === yesterday.toDateString()) return `Вчера ${time}`;
+  const date = d.toLocaleDateString('ru-RU', { day: '2-digit', month: '2-digit', year: '2-digit' });
+  return `${date} ${time}`;
 }
 
 // Описание собеседника с точки зрения текущего пользователя.
@@ -59,9 +55,9 @@ export function counterparty(chat, user) {
   const role = mineRole(user);
   const sub = chat.productName ? `по товару «${chat.productName}»` : null;
   if (chat.kind === 'admin-moderator') {
-    return user.role === 'admin'
+    return user?.role === 'admin'
       ? {
-          name: chat.moderator?.name || 'Модератор',
+          name: displayName(chat.moderator) || 'Модератор',
           sub: 'Модератор',
           tag: 'Модератор',
           color: '#2f54eb',
@@ -75,50 +71,44 @@ export function counterparty(chat, user) {
           icon: 'crown',
         };
   }
-  if (role === 'buyer') {
-    return chat.kind === 'buyer-seller'
+  // Товарные чаты: смотрю ли я как покупающая сторона этого диалога.
+  if (chat.kind === 'buyer-seller') {
+    return chat.buyerId === user?.id
       ? {
-          name: chat.seller?.name || 'Магазин',
+          name: displayName(chat.seller),
           sub: sub || 'Продавец',
           tag: 'Продавец',
           color: '#9850fd',
           icon: 'shop',
         }
       : {
-          name: 'Поддержка',
-          sub: 'Модератор',
-          tag: 'Поддержка',
-          color: '#2aa775',
-          icon: 'support',
-        };
-  }
-  if (role === 'seller') {
-    return chat.kind === 'buyer-seller'
-      ? {
-          name: chat.buyer?.name || 'Покупатель',
+          name: displayName(chat.buyer),
           sub: sub || 'Покупатель',
           tag: 'Покупатель',
           color: '#d48806',
           icon: 'user',
-        }
-      : {
-          name: 'Поддержка',
-          sub: 'Модератор',
-          tag: 'Поддержка',
-          color: '#2aa775',
-          icon: 'support',
         };
+  }
+  // Support-чаты: клиент видит «Поддержку», персонал — клиента.
+  if (role === 'buyer' || role === 'seller') {
+    return {
+      name: 'Поддержка',
+      sub: 'Модератор',
+      tag: 'Поддержка',
+      color: '#2aa775',
+      icon: 'support',
+    };
   }
   return chat.kind === 'buyer-support'
     ? {
-        name: chat.buyer?.name || 'Покупатель',
+        name: displayName(chat.buyer),
         sub: 'Покупатель',
         tag: 'Покупатель',
         color: '#d48806',
         icon: 'user',
       }
     : {
-        name: chat.seller?.name || 'Продавец',
+        name: displayName(chat.seller),
         sub: 'Продавец',
         tag: 'Продавец',
         color: '#9850fd',

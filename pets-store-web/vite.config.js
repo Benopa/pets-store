@@ -19,6 +19,12 @@ export default defineConfig({
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/api/, ''),
       },
+      // WebSocket чата (Socket.IO). Путь /socket.io — серверный дефолт, префикс не срезаем.
+      '/socket.io': {
+        target: 'http://localhost:3000',
+        changeOrigin: true,
+        ws: true,
+      },
     },
   },
   // Unit-тесты (Vitest). jsdom — для localStorage/DOM, setup подключает jest-dom матчеры.

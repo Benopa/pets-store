@@ -16,7 +16,7 @@ import {
   markNotificationRead,
   markAllNotificationsRead,
 } from '@/entities/notification';
-import { selectChatUser, visibleChatsFor, roleInChat, chatUnread } from '@/entities/chat';
+import { selectChatUnreadTotal } from '@/entities/chat';
 
 const { Header: AntHeader } = Layout;
 
@@ -33,12 +33,9 @@ export const Header = () => {
   );
   const notifications = useSelector((state) => state.notifications.items);
   const unreadCount = useSelector(selectUnreadCount);
-  const chats = useSelector((state) => state.chat.chats);
-  const chatUser = useSelector(selectChatUser);
-  const chatUnreadTotal = visibleChatsFor(chats, chatUser).reduce(
-    (sum, c) => sum + chatUnread(c, roleInChat(c, chatUser)),
-    0,
-  );
+  // Непрочитанные сообщения чата: начальное значение с бэкенда (fetchConversations),
+  // дальше обновляется по WebSocket даже при закрытой странице чата.
+  const chatUnreadTotal = useSelector(selectChatUnreadTotal);
 
   const isStaff = role === 'moderator' || role === 'admin';
   const isCourier = role === 'courier';

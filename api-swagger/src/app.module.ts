@@ -10,6 +10,7 @@ import { AnimalsModule } from './animals/animals.module';
 import { OrdersModule } from './orders/orders.module';
 import { ShopsModule } from './shops/shops.module';
 import { NotificationsModule } from './notifications/notifications.module';
+import { ChatModule } from './chat/chat.module';
 import { User } from './entities/user.entity';
 import { Category } from './entities/category.entity';
 import { Animal } from './entities/animal.entity';
@@ -17,6 +18,8 @@ import { AnimalImage } from './entities/animal-image.entity';
 import { Order } from './entities/order.entity';
 import { Shop } from './entities/shop.entity';
 import { Notification } from './entities/notification.entity';
+import { Conversation } from './entities/conversation.entity';
+import { ChatMessage } from './entities/chat-message.entity';
 
 @Module({
   imports: [
@@ -36,7 +39,17 @@ import { Notification } from './entities/notification.entity';
           username: config.get<string>('DB_USERNAME', 'app'),
           password: config.get<string>('DB_PASSWORD', 'app'),
           database: config.get<string>('DB_NAME', 'petstore'),
-          entities: [User, Category, Animal, AnimalImage, Order, Shop, Notification],
+          entities: [
+            User,
+            Category,
+            Animal,
+            AnimalImage,
+            Order,
+            Shop,
+            Notification,
+            Conversation,
+            ChatMessage,
+          ],
           migrations: [join(__dirname, 'migrations', '*.{ts,js}')],
           synchronize,
           // Когда synchronize выключен, прогоняем миграции при старте.
@@ -51,6 +64,7 @@ import { Notification } from './entities/notification.entity';
     OrdersModule,
     ShopsModule,
     NotificationsModule,
+    ChatModule,
   ],
 })
 export class AppModule {}

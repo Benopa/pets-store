@@ -1,5 +1,5 @@
 import { Routes, Route, Navigate } from 'react-router-dom';
-import { useDispatch, useSelector } from 'react-redux';
+import { useDispatch, useSelector, useStore } from 'react-redux';
 import { useEffect } from 'react';
 import { Header } from '@/widgets/header';
 import {
@@ -17,6 +17,7 @@ import {
 import { fetchAnimals, fetchCategories } from '@/entities/animal';
 import { fetchMe } from '@/entities/auth';
 import { fetchNotifications } from '@/entities/notification';
+import { fetchConversations, connectChatSocket, disconnectChatSocket } from '@/entities/chat';
 
 const PrivateRoute = ({ children }) => {
   const accessToken = useSelector((state) => state.auth.accessToken);
@@ -48,6 +49,7 @@ const CourierRoute = ({ children }) => {
 
 export const App = () => {
   const dispatch = useDispatch();
+  const store = useStore();
   const { categoryId, search } = useSelector((state) => state.animal);
   const accessToken = useSelector((state) => state.auth.accessToken);
   useEffect(() => {
@@ -70,6 +72,14 @@ export const App = () => {
     const intervalId = setInterval(() => dispatch(fetchNotifications()), 30000);
     return () => clearInterval(intervalId);
   }, [dispatch, accessToken]);
+  // Чат: диалоги с непрочитанными (в т.ч. накопленные за оффлайн) + WebSocket-соединение —
+  // новые сообщения приходят живьём на любой странице (бейдж в шапке).
+  useEffect(() => {
+    if (!accessToken) return undefined;
+    dispatch(fetchConversations());
+    connectChatSocket(store);
+    return () => disconnectChatSocket();
+  }, [dispatch, store, accessToken]);
 
   return (
     <div className="min-h-screen bg-stone-50 text-stone-800">

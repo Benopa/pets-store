@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { useDispatch } from 'react-redux';
+import { useDispatch, useSelector } from 'react-redux';
 import { App as AntApp, Button, Image as AntImage, Input, Tag, Tooltip, Typography } from 'antd';
 import {
   MessageOutlined,
@@ -7,37 +7,60 @@ import {
   PaperClipOutlined,
   FileOutlined,
   DownloadOutlined,
+  CheckOutlined,
 } from '@ant-design/icons';
 import {
   counterparty,
   roleInChat,
   formatSize,
-  markChatRead,
-  sendMessage,
+  formatMessageAt,
+  fetchMessages,
+  markConversationRead,
+  uploadChatFile,
+  emitChatMessage,
   TAG_COLOR,
 } from '@/entities/chat';
+import { API_ORIGIN } from '@/shared/config';
 import { chatIcon } from '../../lib/chat-icons';
 
 const { Text } = Typography;
 const MAX_SIZE = 8 * 1024 * 1024;
+
+// Ссылки вложений с бэкенда относительные (/uploads/...) — картинки грузим напрямую
+// с origin бэкенда (как photo-gallery); превью до отправки — objectURL.
+const attSrc = (url) => (url.startsWith('/') ? `${API_ORIGIN}${url}` : url);
 
 export const ChatWindow = ({ chat, user }) => {
   const dispatch = useDispatch();
   const { message } = AntApp.useApp();
   const [text, setText] = useState('');
   const [pending, setPending] = useState([]);
+  const [sending, setSending] = useState(false);
   const threadRef = useRef(null);
   const fileRef = useRef(null);
 
-  // Чат открыт / пришло сообщение: отмечаем прочитанным и прокручиваем вниз.
-  // Черновик и вложения сбрасывать вручную не нужно — компонент пере-монтируется по key={chat.id}.
   const chatId = chat?.id;
-  const messageCount = chat?.messages.length;
+  const messages = useSelector((s) => (chatId ? s.chat.messages[chatId] : null)) || [];
+  const myRole = chat ? roleInChat(chat, user) : null;
+
+  // Открыли чат — грузим историю.
+  useEffect(() => {
+    if (chatId) dispatch(fetchMessages(chatId));
+  }, [chatId, dispatch]);
+
+  // Чат открыт / пришло сообщение: помечаем входящие прочитанными и прокручиваем вниз.
+  // Черновик и вложения сбрасывать вручную не нужно — компонент пере-монтируется по key={chat.id}.
+  const messageCount = messages.length;
+  const lastIncoming =
+    messageCount > 0 && messages[messageCount - 1].senderRole !== myRole
+      ? messages[messageCount - 1].id
+      : null;
   useEffect(() => {
     if (!chatId) return;
-    dispatch(markChatRead(chatId));
+    // REST-запрос: бэкенд пометит и оповестит собеседника по сокету («прочитано»).
+    if (lastIncoming) dispatch(markConversationRead(chatId));
     if (threadRef.current) threadRef.current.scrollTop = threadRef.current.scrollHeight;
-  }, [chatId, messageCount, dispatch]);
+  }, [chatId, messageCount, lastIncoming, dispatch]);
 
   if (!chat) {
     return (
@@ -55,7 +78,6 @@ export const ChatWindow = ({ chat, user }) => {
   }
 
   const info = counterparty(chat, user);
-  const myRole = roleInChat(chat, user);
 
   const pickFiles = (fileList) => {
     Array.from(fileList).forEach((file) => {
@@ -63,30 +85,46 @@ export const ChatWindow = ({ chat, user }) => {
         message.error(`«${file.name}» больше 8 МБ`);
         return;
       }
-      const reader = new FileReader();
-      reader.onload = (e) =>
-        setPending((p) => [
-          ...p,
-          {
-            id: Math.random().toString(36).slice(2),
-            type: file.type.startsWith('image/') ? 'image' : 'file',
-            name: file.name,
-            size: file.size,
-            url: e.target.result,
-          },
-        ]);
-      reader.readAsDataURL(file);
+      setPending((p) => [
+        ...p,
+        {
+          id: Math.random().toString(36).slice(2),
+          file,
+          type: file.type.startsWith('image/') ? 'image' : 'file',
+          name: file.name,
+          size: file.size,
+          url: URL.createObjectURL(file),
+        },
+      ]);
     });
   };
 
   const removePending = (id) => setPending((p) => p.filter((a) => a.id !== id));
 
-  const send = () => {
+  const send = async () => {
     const t = text.trim();
-    if (!t && pending.length === 0) return;
-    dispatch(sendMessage({ chatId: chat.id, text: t, attachments: pending }));
-    setText('');
-    setPending([]);
+    if ((!t && pending.length === 0) || sending) return;
+    setSending(true);
+    try {
+      // Сначала грузим вложения на бэкенд, потом шлём сообщение по сокету.
+      const attachments = [];
+      for (const att of pending) {
+        const uploaded = await dispatch(uploadChatFile(att.file)).unwrap();
+        attachments.push(uploaded);
+      }
+      emitChatMessage({ conversationId: chat.id, text: t, attachments }, (ack) => {
+        if (ack?.error) {
+          message.error(ack.error);
+          return;
+        }
+        setText('');
+        setPending([]);
+      });
+    } catch (err) {
+      message.error(typeof err === 'string' ? err : 'Не удалось отправить сообщение');
+    } finally {
+      setSending(false);
+    }
   };
 
   return (
@@ -117,17 +155,17 @@ export const ChatWindow = ({ chat, user }) => {
         ref={threadRef}
         className="flex-1 overflow-y-auto p-[18px] flex flex-col gap-2.5 bg-[#faf9fb]"
       >
-        {chat.messages.length === 0 && (
+        {messages.length === 0 && (
           <div className="grid place-items-center h-full text-center p-6">
             <Text type="secondary">Напишите первое сообщение</Text>
           </div>
         )}
-        {chat.messages.map((m, i) => {
-          const mine = m.from === myRole;
+        {messages.map((m) => {
+          const mine = m.senderRole === myRole;
           const atts = m.attachments || [];
           return (
             <div
-              key={i}
+              key={m.id}
               className={`flex flex-col max-w-[76%] ${mine ? 'self-end items-end' : 'self-start items-start'}`}
             >
               <div
@@ -139,18 +177,18 @@ export const ChatWindow = ({ chat, user }) => {
               >
                 {atts.length > 0 && (
                   <div className={`flex flex-col gap-1.5 ${m.text ? 'mb-1.5' : ''}`}>
-                    {atts.map((att) =>
+                    {atts.map((att, attIndex) =>
                       att.type === 'image' ? (
                         <AntImage
-                          key={att.id}
-                          src={att.url}
+                          key={attIndex}
+                          src={attSrc(att.url)}
                           alt={att.name}
                           className="max-w-[200px] max-h-[200px] rounded-[10px] block object-cover cursor-zoom-in"
                         />
                       ) : (
                         <a
-                          key={att.id}
-                          href={att.url}
+                          key={attIndex}
+                          href={attSrc(att.url)}
                           download={att.name}
                           className={`inline-flex items-center gap-2.5 px-3 py-2 rounded-[10px] text-sm max-w-[240px] no-underline ${
                             mine
@@ -175,7 +213,21 @@ export const ChatWindow = ({ chat, user }) => {
                 )}
                 {m.text ? <span>{m.text}</span> : null}
               </div>
-              <span className="block text-[0.68rem] mt-1 text-stone-400 px-1">{m.at}</span>
+              <span className="flex items-center gap-1 text-[0.68rem] mt-1 text-stone-400 px-1">
+                {formatMessageAt(m.createdAt)}
+                {/* Статус своих сообщений: ✓ отправлено, ✓✓ прочитано собеседником. */}
+                {mine &&
+                  (m.isRead ? (
+                    <span className="text-[#9850fd]" title="Прочитано">
+                      <CheckOutlined className="text-[10px]" />
+                      <CheckOutlined className="text-[10px] -ml-[5px]" />
+                    </span>
+                  ) : (
+                    <span title="Отправлено">
+                      <CheckOutlined className="text-[10px]" />
+                    </span>
+                  ))}
+              </span>
             </div>
           );
         })}
@@ -241,6 +293,7 @@ export const ChatWindow = ({ chat, user }) => {
             size="large"
             icon={<SendOutlined />}
             onClick={send}
+            loading={sending}
             disabled={!text.trim() && pending.length === 0}
           >
             Отправить
