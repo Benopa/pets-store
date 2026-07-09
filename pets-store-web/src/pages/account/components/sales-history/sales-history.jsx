@@ -3,8 +3,10 @@ import { useDispatch, useSelector } from 'react-redux';
 import { useNavigate } from 'react-router-dom';
 import {
   App,
+  Badge,
   Button,
   Divider,
+  Drawer,
   Empty,
   Input,
   List,
@@ -17,11 +19,14 @@ import {
 import {
   CarOutlined,
   CheckCircleOutlined,
+  CheckOutlined,
   ClockCircleOutlined,
   CloseCircleOutlined,
   EnvironmentOutlined,
+  FunnelPlotFilled,
   InboxOutlined,
   SearchOutlined,
+  SortAscendingOutlined,
   SyncOutlined,
   UserOutlined,
   WalletOutlined,
@@ -29,6 +34,7 @@ import {
 import { setCurrentAnimal } from '@/entities/animal';
 import { cancelSale, markReady, markShipped } from '@/entities/order';
 import { API_ORIGIN } from '@/shared/config';
+import { useIsMobile } from '@/shared/lib';
 
 const { Text } = Typography;
 
@@ -47,6 +53,37 @@ const STATUS_OPTIONS = [
   { value: 'all', label: 'Все статусы' },
   ...Object.entries(STATUS_META).map(([value, meta]) => ({ value, label: meta.label })),
 ];
+
+// Варианты сортировки истории продаж по сумме заказа.
+const SORT_OPTIONS = [
+  { value: 'date', label: 'Сначала новые' },
+  { value: 'priceAsc', label: 'Сначала дешевле' },
+  { value: 'priceDesc', label: 'Сначала дороже' },
+];
+const DEFAULT_SORT = SORT_OPTIONS[0].value; // 'date' — при нём кнопку сортировки не подсвечиваем
+
+// Список вариантов внутри мобильного Drawer: выбранный подсвечен фоном и галочкой,
+// клик выбирает вариант и закрывает шторку (тот же паттерн, что в истории покупок).
+const OptionList = ({ options, value, onSelect }) => (
+  <div className="flex flex-col gap-1">
+    {options.map((option) => {
+      const active = option.value === value;
+      return (
+        <button
+          key={String(option.value)}
+          type="button"
+          onClick={() => onSelect(option.value)}
+          className={`flex items-center justify-between rounded-lg px-3 py-3 text-left text-base transition-colors ${
+            active ? 'bg-stone-100 font-medium text-stone-900' : 'text-stone-600'
+          }`}
+        >
+          {option.label}
+          {active && <CheckOutlined className="text-stone-900" />}
+        </button>
+      );
+    })}
+  </div>
+);
 
 // Статус оплаты заказа: онлайн-оплата (карта/СБП) подтверждается после «связи с банком»,
 // до этого — «ждём подтверждения»; наличные — «оплата при получении».
@@ -82,6 +119,7 @@ const isCancellableSale = (status) =>
 export const SalesHistory = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
+  const isMobile = useIsMobile();
   const { message } = App.useApp();
   const { sales, salesLoading } = useSelector((state) => state.orders);
   const animals = useSelector((state) => state.animal.animals);
@@ -95,6 +133,9 @@ export const SalesHistory = () => {
   const [sort, setSort] = useState('date');
   // Фильтр по статусу заказа: 'all' | created | paid | shipped | delivered | cancelled.
   const [status, setStatus] = useState('all');
+  // Мобильная панель: раскрытие поиска на всю строку + открытая шторка ('status' | 'sort' | null).
+  const [searchFocused, setSearchFocused] = useState(false);
+  const [openDrawer, setOpenDrawer] = useState(null);
   // Отмена заказа: id отменяемой продажи + выбранная причина и текст для «Другое» + загрузка.
   const [cancelId, setCancelId] = useState(null);
   const [reason, setReason] = useState(CANCEL_REASONS[0]);
@@ -190,46 +231,124 @@ export const SalesHistory = () => {
 
   return (
     <>
-      <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <Input
-          allowClear
-          size="large"
-          value={search}
-          onChange={(e) => {
-            setSearch(e.target.value);
-            setPage(1);
-          }}
-          prefix={<SearchOutlined className="text-stone-400" />}
-          placeholder="Поиск по номеру или ID заказа"
-          className="sm:max-w-sm"
-        />
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
-          <Select
-            value={status}
+      {isMobile ? (
+        // Мобильная панель — как в истории покупок: поиск раскрывается на всю строку
+        // (в фокусе иконки скрыты), фильтр и сортировка — иконки, открывающие нижние шторки.
+        <div className="mb-4 flex items-center gap-2">
+          <Input
+            allowClear
             size="large"
-            className="sm:w-44"
-            onChange={(value) => {
-              setStatus(value);
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
               setPage(1);
             }}
-            options={STATUS_OPTIONS}
+            onFocus={() => setSearchFocused(true)}
+            onBlur={() => setSearchFocused(false)}
+            prefix={<SearchOutlined className="text-stone-400" />}
+            placeholder="Поиск"
+            className="min-w-0 flex-1"
           />
-          <Select
-            value={sort}
-            size="large"
-            className="sm:w-52"
-            onChange={(value) => {
-              setSort(value);
-              setPage(1);
-            }}
-            options={[
-              { value: 'date', label: 'Сначала новые' },
-              { value: 'priceAsc', label: 'Сначала дешевле' },
-              { value: 'priceDesc', label: 'Сначала дороже' },
-            ]}
-          />
+          {!searchFocused && (
+            <>
+              <Badge dot={status !== 'all'}>
+                <Button
+                  size="large"
+                  type={status !== 'all' ? 'primary' : 'default'}
+                  icon={<FunnelPlotFilled />}
+                  onClick={() => setOpenDrawer('status')}
+                  aria-label="Фильтр по статусу"
+                />
+              </Badge>
+              <Badge dot={sort !== DEFAULT_SORT}>
+                <Button
+                  size="large"
+                  type={sort !== DEFAULT_SORT ? 'primary' : 'default'}
+                  icon={<SortAscendingOutlined />}
+                  onClick={() => setOpenDrawer('sort')}
+                  aria-label="Сортировка"
+                />
+              </Badge>
+            </>
+          )}
         </div>
-      </div>
+      ) : (
+        <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <Input
+            allowClear
+            size="large"
+            value={search}
+            onChange={(e) => {
+              setSearch(e.target.value);
+              setPage(1);
+            }}
+            prefix={<SearchOutlined className="text-stone-400" />}
+            placeholder="Поиск по номеру или ID заказа"
+            className="sm:max-w-sm"
+          />
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
+            <Select
+              value={status}
+              size="large"
+              className="sm:w-44"
+              onChange={(value) => {
+                setStatus(value);
+                setPage(1);
+              }}
+              options={STATUS_OPTIONS}
+            />
+            <Select
+              value={sort}
+              size="large"
+              className="sm:w-52"
+              onChange={(value) => {
+                setSort(value);
+                setPage(1);
+              }}
+              options={SORT_OPTIONS}
+            />
+          </div>
+        </div>
+      )}
+
+      {isMobile && (
+        <>
+          <Drawer
+            title="Статус заказа"
+            placement="bottom"
+            height="auto"
+            open={openDrawer === 'status'}
+            onClose={() => setOpenDrawer(null)}
+          >
+            <OptionList
+              options={STATUS_OPTIONS}
+              value={status}
+              onSelect={(value) => {
+                setStatus(value);
+                setPage(1);
+                setOpenDrawer(null);
+              }}
+            />
+          </Drawer>
+          <Drawer
+            title="Сортировка"
+            placement="bottom"
+            height="auto"
+            open={openDrawer === 'sort'}
+            onClose={() => setOpenDrawer(null)}
+          >
+            <OptionList
+              options={SORT_OPTIONS}
+              value={sort}
+              onSelect={(value) => {
+                setSort(value);
+                setPage(1);
+                setOpenDrawer(null);
+              }}
+            />
+          </Drawer>
+        </>
+      )}
       <List
         itemLayout="horizontal"
         dataSource={sorted}

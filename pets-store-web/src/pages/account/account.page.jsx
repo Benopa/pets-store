@@ -230,6 +230,10 @@ export const AccountPage = () => {
         <ArrowLeftOutlined /> В каталог
       </Link>
 
+      <Title level={2} className="!mb-6 !font-light">
+        Личный кабинет
+      </Title>
+
       {/* Шапка профиля со статистикой */}
       <Card className="border border-stone-200 mb-6" styles={{ body: { padding: 24 } }}>
         {initialLoading ? (
@@ -284,13 +288,16 @@ export const AccountPage = () => {
               <>
                 <Divider className="!my-5" />
 
+                {/* На мобильной иконки-префиксы не показываем и запрещаем перенос значения:
+                    иначе число уезжает на вторую строку и показатели «ломают» одну строку. */}
                 <Row gutter={16}>
                   <Col span={isSeller ? 12 : 8}>
                     <Statistic
                       title={isSeller ? 'Продаж' : 'Покупок'}
                       value={isSeller ? salesCount : purchasesCount}
-                      prefix={<ShoppingOutlined className="text-stone-400" />}
+                      prefix={isMobile ? null : <ShoppingOutlined className="text-stone-400" />}
                       valueStyle={statValueStyle}
+                      className="[&_.ant-statistic-content]:whitespace-nowrap"
                     />
                   </Col>
                   {/* Избранное — только у покупателя; у продавца его нет. */}
@@ -299,8 +306,9 @@ export const AccountPage = () => {
                       <Statistic
                         title="В избранном"
                         value={favCount}
-                        prefix={<HeartOutlined className="text-stone-400" />}
+                        prefix={isMobile ? null : <HeartOutlined className="text-stone-400" />}
                         valueStyle={statValueStyle}
+                        className="[&_.ant-statistic-content]:whitespace-nowrap"
                       />
                     </Col>
                   )}
@@ -310,6 +318,7 @@ export const AccountPage = () => {
                       value={isSeller ? revenue : spent}
                       suffix="₽"
                       valueStyle={statValueStyle}
+                      className="[&_.ant-statistic-content]:whitespace-nowrap"
                     />
                   </Col>
                 </Row>
@@ -343,10 +352,6 @@ export const AccountPage = () => {
           </>
         )}
       </Card>
-
-      <Title level={2} className="!mb-6 !font-light">
-        Личный кабинет
-      </Title>
 
       <Tabs
         defaultActiveKey="contacts"

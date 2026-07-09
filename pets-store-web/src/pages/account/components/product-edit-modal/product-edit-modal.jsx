@@ -32,7 +32,7 @@ import {
 } from '@/entities/animal';
 import { fetchShops } from '@/entities/shop';
 import { API_ORIGIN } from '@/shared/config';
-import { useIsMobile } from '@/shared/lib';
+import { fullscreenModalProps, useIsMobile } from '@/shared/lib';
 
 // Префикс значения Select для ещё не созданной (предложенной) категории: value = `new:Рыбки`.
 // На submit такое значение уходит как newCategoryName, а не categoryId.
@@ -358,6 +358,7 @@ const ProductEditModalInner = ({ animal, onClose }) => {
       okText={isEdit ? 'Сохранить' : 'Добавить товар'}
       cancelText="Отмена"
       title={isEdit ? `Редактирование «${animal.name}»` : 'Новый товар'}
+      {...fullscreenModalProps(isMobile, { centerBody: true })}
     >
       <Form
         form={form}

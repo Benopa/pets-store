@@ -9,7 +9,7 @@ import {
 import { addToCart } from '@/entities/cart';
 import { toggleFavorite } from '@/entities/favorites';
 import { createConversation } from '@/entities/chat';
-import { useIsMobile } from '@/shared/lib';
+import { fullscreenModalProps, useIsMobile } from '@/shared/lib';
 import { useMemo } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
@@ -249,6 +249,7 @@ export const HomePage = () => {
         width={780}
         title={null}
         footer={isMobile ? mobileFooter : desktopFooter}
+        {...fullscreenModalProps(isMobile, { centerBody: true })}
       >
         {currentAnimal && (
           <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
