@@ -11,6 +11,7 @@ import {
   CarOutlined,
 } from '@ant-design/icons';
 import { logout } from '@/entities/auth';
+import { API_ORIGIN } from '@/shared/config';
 import {
   selectUnreadCount,
   markNotificationRead,
@@ -28,6 +29,9 @@ export const Header = () => {
   const isAuthPage = location.pathname === '/login' || location.pathname === '/register';
   const accessToken = useSelector((state) => state.auth.accessToken);
   const role = useSelector((state) => state.auth.role);
+  const avatar = useSelector((state) => state.auth.avatar);
+  // Аватар отдаётся относительным путём /uploads/... — грузим напрямую с origin бэкенда.
+  const avatarSrc = avatar ? `${API_ORIGIN}${avatar}` : null;
   const cartCount = useSelector((state) =>
     state.cart.items.reduce((sum, item) => sum + item.quantity, 0),
   );
@@ -136,7 +140,11 @@ export const Header = () => {
               </Badge>
             )}
             <Dropdown menu={menu} placement="bottomRight" trigger={['click']}>
-              <Avatar className="!bg-[#9850fd] cursor-pointer" icon={<UserOutlined />} />
+              <Avatar
+                className="!bg-[#9850fd] cursor-pointer"
+                src={avatarSrc}
+                icon={<UserOutlined />}
+              />
             </Dropdown>
           </Space>
         )}

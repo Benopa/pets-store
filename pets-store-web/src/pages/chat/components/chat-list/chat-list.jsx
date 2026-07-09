@@ -2,7 +2,7 @@ import { useDispatch } from 'react-redux';
 import { Popconfirm, Typography } from 'antd';
 import { DeleteOutlined } from '@ant-design/icons';
 import { counterparty, roleInChat, formatMessageAt, deleteConversation } from '@/entities/chat';
-import { chatIcon } from '../../lib/chat-icons';
+import { ChatAvatar } from '../../lib/chat-avatar';
 
 const { Text } = Typography;
 
@@ -42,12 +42,7 @@ export const ChatList = ({ chats, user, selectedId, onSelect }) => {
                   isActive ? 'bg-[#f1e9fe]' : 'hover:bg-stone-100'
                 }`}
               >
-                <div
-                  className="shrink-0 w-[42px] h-[42px] rounded-full grid place-items-center text-white text-base"
-                  style={{ background: info.color }}
-                >
-                  {chatIcon(info.icon)}
-                </div>
+                <ChatAvatar info={info} size={42} />
                 <div className="min-w-0 flex-1">
                   <div className="flex items-center justify-between gap-2">
                     <span className="font-semibold text-stone-800 text-[0.92rem] truncate">

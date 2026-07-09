@@ -21,7 +21,7 @@ import {
   TAG_COLOR,
 } from '@/entities/chat';
 import { API_ORIGIN } from '@/shared/config';
-import { chatIcon } from '../../lib/chat-icons';
+import { ChatAvatar } from '../../lib/chat-avatar';
 
 const { Text } = Typography;
 const MAX_SIZE = 8 * 1024 * 1024;
@@ -130,12 +130,7 @@ export const ChatWindow = ({ chat, user }) => {
   return (
     <section className="flex flex-col min-h-0">
       <div className="flex items-center gap-3 px-[18px] py-3 border-b border-stone-100">
-        <div
-          className="shrink-0 w-[38px] h-[38px] rounded-full grid place-items-center text-white text-[15px]"
-          style={{ background: info.color }}
-        >
-          {chatIcon(info.icon)}
-        </div>
+        <ChatAvatar info={info} size={38} />
         <div className="flex-1 min-w-0">
           <div className="flex items-center gap-2">
             <Text strong className="truncate">

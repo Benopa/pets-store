@@ -51,6 +51,8 @@ export function formatMessageAt(iso) {
 
 // Описание собеседника с точки зрения текущего пользователя.
 // icon — ключ ('shop' | 'user' | 'support' | 'crown' | 'safety'), элемент рисуется в UI.
+// avatar — путь /uploads/... загруженного фото собеседника (null, если фото нет или
+// сторона «коллективная» — Поддержка/Администрация не привязаны к конкретному человеку).
 export function counterparty(chat, user) {
   const role = mineRole(user);
   const sub = chat.productName ? `по товару «${chat.productName}»` : null;
@@ -62,6 +64,7 @@ export function counterparty(chat, user) {
           tag: 'Модератор',
           color: '#2f54eb',
           icon: 'safety',
+          avatar: chat.moderator?.avatar || null,
         }
       : {
           name: 'Администрация',
@@ -69,6 +72,7 @@ export function counterparty(chat, user) {
           tag: 'Администратор',
           color: '#9850fd',
           icon: 'crown',
+          avatar: null,
         };
   }
   // Товарные чаты: смотрю ли я как покупающая сторона этого диалога.
@@ -80,6 +84,7 @@ export function counterparty(chat, user) {
           tag: 'Продавец',
           color: '#9850fd',
           icon: 'shop',
+          avatar: chat.seller?.avatar || null,
         }
       : {
           name: displayName(chat.buyer),
@@ -87,6 +92,7 @@ export function counterparty(chat, user) {
           tag: 'Покупатель',
           color: '#d48806',
           icon: 'user',
+          avatar: chat.buyer?.avatar || null,
         };
   }
   // Support-чаты: клиент видит «Поддержку», персонал — клиента.
@@ -97,6 +103,7 @@ export function counterparty(chat, user) {
       tag: 'Поддержка',
       color: '#2aa775',
       icon: 'support',
+      avatar: null,
     };
   }
   return chat.kind === 'buyer-support'
@@ -106,6 +113,7 @@ export function counterparty(chat, user) {
         tag: 'Покупатель',
         color: '#d48806',
         icon: 'user',
+        avatar: chat.buyer?.avatar || null,
       }
     : {
         name: displayName(chat.seller),
@@ -113,6 +121,7 @@ export function counterparty(chat, user) {
         tag: 'Продавец',
         color: '#9850fd',
         icon: 'shop',
+        avatar: chat.seller?.avatar || null,
       };
 }
 
