@@ -11,6 +11,7 @@ import {
   Input,
   List,
   Modal,
+  Popover,
   Select,
   Skeleton,
   Tag,
@@ -25,6 +26,7 @@ import {
   EnvironmentOutlined,
   FunnelPlotFilled,
   InboxOutlined,
+  InfoCircleOutlined,
   SearchOutlined,
   SortAscendingOutlined,
   SyncOutlined,
@@ -214,6 +216,45 @@ export const SalesHistory = () => {
     ? (PAYMENT_META[detail.paymentStatus] ?? PAYMENT_META.on_delivery)
     : null;
   const anyCardAvailable = (detail?.items ?? []).some((it) => animalOf(it.itemId));
+
+  // Кнопки футера модалки заказа. На мобильной «Закрыть» не показываем — есть
+  // крестик сверху (как в истории покупок); без кнопок футер скрываем целиком.
+  const detailFooterButtons = detail
+    ? [
+        isReadyable(detail.status) && (
+          <Button
+            key="ready"
+            type="primary"
+            icon={<InboxOutlined />}
+            loading={readying}
+            onClick={handleReady}
+          >
+            Отправить
+          </Button>
+        ),
+        canShip(detail.status) && (
+          <Button
+            key="ship"
+            type="primary"
+            icon={<CarOutlined />}
+            loading={shipping}
+            onClick={handleShip}
+          >
+            Передать в доставку
+          </Button>
+        ),
+        isCancellableSale(detail.status) && (
+          <Button key="cancel" danger onClick={() => setCancelId(detail.id)}>
+            {isMobile ? 'Отменить' : 'Отменить заказ'}
+          </Button>
+        ),
+        !isMobile && (
+          <Button key="close" onClick={() => setDetailId(null)}>
+            Закрыть
+          </Button>
+        ),
+      ].filter(Boolean)
+    : [];
 
   // Фильтр по статусу + поиску. Короткий номер заказа — префикс полного id,
   // поэтому одного includes по id хватает и на номер, и на полный id.
@@ -414,42 +455,7 @@ export const SalesHistory = () => {
       <Modal
         open={Boolean(detail)}
         onCancel={() => setDetailId(null)}
-        footer={
-          detail
-            ? [
-                isReadyable(detail.status) && (
-                  <Button
-                    key="ready"
-                    type="primary"
-                    icon={<InboxOutlined />}
-                    loading={readying}
-                    onClick={handleReady}
-                  >
-                    Готов к отправке
-                  </Button>
-                ),
-                canShip(detail.status) && (
-                  <Button
-                    key="ship"
-                    type="primary"
-                    icon={<CarOutlined />}
-                    loading={shipping}
-                    onClick={handleShip}
-                  >
-                    Передать в доставку
-                  </Button>
-                ),
-                isCancellableSale(detail.status) && (
-                  <Button key="cancel" danger onClick={() => setCancelId(detail.id)}>
-                    Отменить заказ
-                  </Button>
-                ),
-                <Button key="close" onClick={() => setDetailId(null)}>
-                  Закрыть
-                </Button>,
-              ]
-            : null
-        }
+        footer={detailFooterButtons.length ? detailFooterButtons : null}
         title={detail ? `Заказ №${String(detail.id).slice(0, 8)}` : ''}
         width={560}
       >
@@ -509,7 +515,30 @@ export const SalesHistory = () => {
             <Divider className="!my-3" />
 
             <Text type="secondary" className="text-xs">
-              Что продано{anyCardAvailable ? ' · нажмите на товар, чтобы открыть карточку' : ''}
+              Что продано
+              {anyCardAvailable &&
+                (isMobile ? (
+                  // На мобильной пояснение прячем в иконку «i» — открывается по тапу.
+                  <Popover
+                    trigger="click"
+                    content={
+                      <div className="max-w-[240px] text-xs">
+                        Нажмите на товар, чтобы открыть карточку
+                      </div>
+                    }
+                  >
+                    <button
+                      type="button"
+                      aria-label="Подсказка"
+                      className="ml-1 inline-flex cursor-pointer border-0 bg-transparent p-0 align-middle text-stone-400"
+                      onClick={(e) => e.preventDefault()}
+                    >
+                      <InfoCircleOutlined />
+                    </button>
+                  </Popover>
+                ) : (
+                  ' · нажмите на товар, чтобы открыть карточку'
+                ))}
             </Text>
             <div className="mt-2 flex flex-col gap-1">
               {(detail.items ?? []).map((it) => {

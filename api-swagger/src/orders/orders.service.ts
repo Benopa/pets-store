@@ -18,6 +18,10 @@ import { NotificationsService } from '../notifications/notifications.service';
 // выручку сайт получает сервисным сбором при оформлении заказа. Совпадает со ставкой на фронте.
 const SERVICE_FEE_RATE = 0.08;
 
+// Короткий номер заказа для текстов уведомлений — первые 8 символов id
+// (то же представление «Заказ №XXXXXXXX», что и в интерфейсе).
+const orderNo = (id: string) => String(id).slice(0, 8);
+
 @Injectable()
 export class OrdersService {
   constructor(
@@ -52,7 +56,7 @@ export class OrdersService {
       paymentStatus,
     });
     const saved = await this.orderRepo.save(order);
-    await this.notifySellers(dto, dbUser.id);
+    await this.notifySellers(dto, dbUser.id, saved.id);
     return saved;
   }
 
@@ -111,7 +115,7 @@ export class OrdersService {
 
   // Уведомляем продавцов о заказе их питомцев. Только позиции type='pet' привязаны к товару
   // (owner животного); food пропускаем. Себе уведомление не шлём.
-  private async notifySellers(dto: CreateOrderDto, buyerId: string) {
+  private async notifySellers(dto: CreateOrderDto, buyerId: string, orderId: string) {
     const petItems = dto.items.filter((item) => item.type === 'pet');
     for (const item of petItems) {
       const animal = await this.animalRepo.findOne({ where: { id: item.itemId } });
@@ -120,7 +124,7 @@ export class OrdersService {
       }
       await this.notificationsService.create(animal.owner.id, {
         type: 'order_placed',
-        title: 'Новый заказ',
+        title: `Новый заказ №${orderNo(orderId)}`,
         body: `Вашего питомца «${animal.name}» заказали${item.quantity > 1 ? ` (×${item.quantity})` : ''}.`,
         animalId: animal.id,
       });
@@ -394,7 +398,7 @@ export class OrdersService {
     const saved = await this.orderRepo.save(order);
     await this.notificationsService.create(order.user.id, {
       type: 'order_cancelled',
-      title: 'Заказ отменён продавцом',
+      title: `Заказ №${orderNo(order.id)} отменён продавцом`,
       body: order.cancelReason
         ? `Причина: ${order.cancelReason}`
         : 'Продавец отменил ваш заказ.',
@@ -436,7 +440,7 @@ export class OrdersService {
     const saved = await this.orderRepo.save(order);
     await this.notificationsService.create(order.user.id, {
       type: 'order_ready',
-      title: 'Заказ готов к отправке',
+      title: `Заказ №${orderNo(order.id)} готов к отправке`,
       body: 'Продавец подготовил ваш заказ к отправке.',
     });
     return saved;
@@ -461,7 +465,7 @@ export class OrdersService {
     const saved = await this.orderRepo.save(order);
     await this.notificationsService.create(order.user.id, {
       type: 'order_shipped',
-      title: 'Заказ передан в доставку',
+      title: `Заказ №${orderNo(order.id)} передан в доставку`,
       body: 'Ваш заказ в доставке.',
     });
     return saved;
@@ -533,7 +537,7 @@ export class OrdersService {
     const saved = await this.orderRepo.save(order);
     await this.notificationsService.create(order.user.id, {
       type: 'order_delivered',
-      title: 'Заказ доставлен',
+      title: `Заказ №${orderNo(order.id)} доставлен`,
       body: 'Курьер отметил ваш заказ как переданный покупателю.',
     });
     return saved;

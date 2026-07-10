@@ -21,6 +21,20 @@ import { selectChatUnreadTotal } from '@/entities/chat';
 
 const { Header: AntHeader } = Layout;
 
+// Куда ведёт клик по уведомлению — вкладка личного кабинета по типу события:
+// модерация товара → «Мои товары»; новый заказ (уходит продавцу) → история продаж;
+// статусы заказа (уходят покупателю) → история покупок. Вкладка history сама
+// показывает продажи продавцу и покупки покупателю.
+const NOTIFICATION_TAB = {
+  animal_approved: 'products',
+  animal_rejected: 'products',
+  order_placed: 'history',
+  order_cancelled: 'history',
+  order_ready: 'history',
+  order_shipped: 'history',
+  order_delivered: 'history',
+};
+
 export const Header = () => {
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -46,7 +60,9 @@ export const Header = () => {
   // Корзину показываем только тем, кто покупает (покупатель/продавец).
   const canShop = role === 'buyer' || role === 'seller';
 
-  // Лента уведомлений в выпадающем меню «колокольчика».
+  // Лента уведомлений в выпадающем меню «колокольчика». Показываем только
+  // непрочитанные: прочитанное пропадает из списка, но остаётся в БД.
+  const unreadNotifications = notifications.filter((n) => !n.isRead);
   const notifMenu = {
     items: [
       ...(unreadCount
@@ -55,11 +71,11 @@ export const Header = () => {
             { type: 'divider' },
           ]
         : []),
-      ...(notifications.length
-        ? notifications.map((n) => ({
+      ...(unreadNotifications.length
+        ? unreadNotifications.map((n) => ({
             key: n.id,
             label: (
-              <div className={`max-w-xs whitespace-normal py-1 ${n.isRead ? 'opacity-50' : ''}`}>
+              <div className="max-w-xs whitespace-normal py-1">
                 <div className="font-medium text-stone-800">{n.title}</div>
                 {n.body && <div className="text-xs text-stone-500">{n.body}</div>}
               </div>
@@ -81,8 +97,10 @@ export const Header = () => {
       const notification = notifications.find((n) => n.id === key);
       if (!notification) return;
       if (!notification.isRead) dispatch(markNotificationRead(notification.id));
-      // Товарные уведомления ведут в личный кабинет, где продавец управляет карточками.
-      if (notification.animalId) navigate('/account');
+      // Открываем раздел кабинета с информацией из уведомления (по типу события).
+      const tab = NOTIFICATION_TAB[notification.type];
+      if (tab) navigate(`/account?tab=${tab}`);
+      else if (notification.animalId) navigate('/account');
     },
   };
 

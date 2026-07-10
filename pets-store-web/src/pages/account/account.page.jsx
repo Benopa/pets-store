@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import { useDispatch, useSelector } from 'react-redux';
 import {
   App,
@@ -63,6 +63,8 @@ export const AccountPage = () => {
   const { message } = App.useApp();
   const [passwordForm] = Form.useForm();
   const [profitOpen, setProfitOpen] = useState(false);
+  // Активная вкладка живёт в ?tab=... — уведомления открывают нужный раздел ссылкой.
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const { email, firstName, lastName, role, avatar, accessToken, loading, changingPassword } =
     useSelector((state) => state.auth);
@@ -221,6 +223,89 @@ export const AccountPage = () => {
     </Card>
   );
 
+  // Вкладки зависят от роли; активная задаётся через ?tab=... (переходы из
+  // уведомлений). Неизвестный или недоступный роли ключ — откат на «Контактные данные»
+  // (пока роль грузится, редкие вкладки просто ещё не в списке — после fetchMe
+  // activeTab пересчитается и нужная вкладка откроется).
+  const tabItems = [
+    {
+      key: 'contacts',
+      label: (
+        <span>
+          <IdcardOutlined /> Контактные данные
+        </span>
+      ),
+      children: initialLoading ? <Skeleton active paragraph={{ rows: 4 }} /> : <ContactForm />,
+    },
+    isAdmin && {
+      key: 'moderators',
+      label: (
+        <span>
+          <TeamOutlined /> Модераторы
+        </span>
+      ),
+      children: <ModeratorsManager />,
+    },
+    isAdmin && {
+      key: 'couriers',
+      label: (
+        <span>
+          <CarOutlined /> Курьеры
+        </span>
+      ),
+      children: <CouriersManager />,
+    },
+    canManage && {
+      key: 'products',
+      label: (
+        <span>
+          <ShopOutlined /> {isAdmin ? 'Управление товарами' : 'Мои товары'}
+        </span>
+      ),
+      children: <ProductsManager />,
+    },
+    isAdmin && {
+      key: 'stores',
+      label: (
+        <span>
+          <ShoppingOutlined /> Магазины
+        </span>
+      ),
+      children: <StoresManager />,
+    },
+    // Избранное доступно только покупателю (не персоналу и не продавцу).
+    !isStaff &&
+      !isSeller && {
+        key: 'favorites',
+        label: (
+          <span>
+            <HeartOutlined /> Избранное
+          </span>
+        ),
+        children: <FavoritesGrid />,
+      },
+    !isStaff && {
+      key: 'history',
+      label: (
+        <span>
+          <HistoryOutlined /> {isSeller ? 'История продаж' : 'История покупок'}
+        </span>
+      ),
+      children: isSeller ? <SalesHistory /> : <PurchaseHistory />,
+    },
+    {
+      key: 'security',
+      label: (
+        <span>
+          <LockOutlined /> Безопасность
+        </span>
+      ),
+      children: securityTab,
+    },
+  ].filter(Boolean);
+  const tabParam = searchParams.get('tab') || 'contacts';
+  const activeTab = tabItems.some((t) => t.key === tabParam) ? tabParam : 'contacts';
+
   return (
     <div>
       <Link
@@ -354,88 +439,12 @@ export const AccountPage = () => {
       </Card>
 
       <Tabs
-        defaultActiveKey="contacts"
+        activeKey={activeTab}
+        onChange={(key) =>
+          setSearchParams(key === 'contacts' ? {} : { tab: key }, { replace: true })
+        }
         size="large"
-        items={[
-          {
-            key: 'contacts',
-            label: (
-              <span>
-                <IdcardOutlined /> Контактные данные
-              </span>
-            ),
-            children: initialLoading ? (
-              <Skeleton active paragraph={{ rows: 4 }} />
-            ) : (
-              <ContactForm />
-            ),
-          },
-          isAdmin && {
-            key: 'moderators',
-            label: (
-              <span>
-                <TeamOutlined /> Модераторы
-              </span>
-            ),
-            children: <ModeratorsManager />,
-          },
-          isAdmin && {
-            key: 'couriers',
-            label: (
-              <span>
-                <CarOutlined /> Курьеры
-              </span>
-            ),
-            children: <CouriersManager />,
-          },
-          canManage && {
-            key: 'products',
-            label: (
-              <span>
-                <ShopOutlined /> {isAdmin ? 'Управление товарами' : 'Мои товары'}
-              </span>
-            ),
-            children: <ProductsManager />,
-          },
-          isAdmin && {
-            key: 'stores',
-            label: (
-              <span>
-                <ShoppingOutlined /> Магазины
-              </span>
-            ),
-            children: <StoresManager />,
-          },
-          // Избранное доступно только покупателю (не персоналу и не продавцу).
-          !isStaff &&
-            !isSeller && {
-              key: 'favorites',
-              label: (
-                <span>
-                  <HeartOutlined /> Избранное
-                </span>
-              ),
-              children: <FavoritesGrid />,
-            },
-          !isStaff && {
-            key: 'history',
-            label: (
-              <span>
-                <HistoryOutlined /> {isSeller ? 'История продаж' : 'История покупок'}
-              </span>
-            ),
-            children: isSeller ? <SalesHistory /> : <PurchaseHistory />,
-          },
-          {
-            key: 'security',
-            label: (
-              <span>
-                <LockOutlined /> Безопасность
-              </span>
-            ),
-            children: securityTab,
-          },
-        ].filter(Boolean)}
+        items={tabItems}
       />
 
       {isAdmin && <ProfitModal open={profitOpen} onClose={() => setProfitOpen(false)} />}
