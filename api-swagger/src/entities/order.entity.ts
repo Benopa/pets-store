@@ -15,11 +15,20 @@ export type PaymentMethod = 'card' | 'sbp' | 'cash';
 //   on_delivery — оплата при получении (наличные/курьер).
 export type PaymentStatus = 'paid' | 'awaiting' | 'on_delivery';
 
+// Статус отдельной позиции. Позиции разных продавцов готовятся независимо:
+// продавец меняет статус только своих позиций, а статус заказа — агрегат по позициям.
+// Отсутствие статуса — позиция ещё не готовится (стадия created/paid заказа);
+// у старых заказов позиции без статуса наследуют статус заказа.
+export type OrderItemStatus = 'ready' | 'shipped' | 'delivered' | 'cancelled';
+
 export interface OrderItem {
   type: 'pet' | 'food';
   itemId: string;
   quantity: number;
   note?: string;
+  status?: OrderItemStatus | null;
+  // Причина отмены позиции (заполняется при отмене продавцом своей части).
+  cancelReason?: string | null;
 }
 
 @Entity({ name: 'orders' })

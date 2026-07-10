@@ -7,7 +7,7 @@ import {
 import { InjectRepository } from '@nestjs/typeorm';
 import { Repository } from 'typeorm';
 
-import { Order } from '../entities/order.entity';
+import { Order, OrderItem, OrderItemStatus } from '../entities/order.entity';
 import { User } from '../entities/user.entity';
 import { Animal } from '../entities/animal.entity';
 import { CreateOrderDto } from './dto/create-order.dto';
@@ -21,6 +21,14 @@ const SERVICE_FEE_RATE = 0.08;
 // Короткий номер заказа для текстов уведомлений — первые 8 символов id
 // (то же представление «Заказ №XXXXXXXX», что и в интерфейсе).
 const orderNo = (id: string) => String(id).slice(0, 8);
+
+// Порядок стадий позиции: нет статуса (готовится) < ready < shipped < delivered.
+// cancelled — вне порядка, отменённые позиции в агрегат не входят.
+const ITEM_STAGE_RANK: Record<Exclude<OrderItemStatus, 'cancelled'>, number> = {
+  ready: 1,
+  shipped: 2,
+  delivered: 3,
+};
 
 @Injectable()
 export class OrdersService {
@@ -168,28 +176,55 @@ export class OrdersService {
               name: animal.name,
               quantity: item.quantity,
               price: sellerPrice,
+              status: this.effectiveItemStatus(order, item),
+              cancelReason: item.cancelReason ?? null,
             };
           });
         return { order, items };
       })
       .filter(({ items }) => items.length > 0)
-      .map(({ order, items }) => ({
-        id: order.id,
-        status: order.status,
-        cancelReason: order.cancelReason ?? null,
-        paymentMethod: order.paymentMethod ?? null,
-        paymentStatus: order.paymentStatus ?? 'on_delivery',
-        createdAt: order.createdAt,
-        address: order.address ?? null,
-        buyer: {
-          id: order.user?.id ?? null,
-          firstName: order.user?.firstName ?? null,
-          lastName: order.user?.lastName ?? null,
-          email: order.user?.email ?? null,
-        },
-        items,
-        total: items.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0),
-      }));
+      .map(({ order, items }) => {
+        // Статус ЧАСТИ заказа этого продавца: части разных продавцов независимы,
+        // поэтому смотрим только на его позиции, а не на агрегат заказа.
+        const activeItems = items.filter((item) => item.status !== 'cancelled');
+        let partStatus: string;
+        if (!activeItems.length) {
+          partStatus = 'cancelled';
+        } else {
+          const rank = Math.min(
+            ...activeItems.map((item) =>
+              item.status && item.status !== 'cancelled' ? ITEM_STAGE_RANK[item.status] : 0,
+            ),
+          );
+          if (rank === ITEM_STAGE_RANK.ready) partStatus = 'ready';
+          else if (rank === ITEM_STAGE_RANK.shipped) partStatus = 'shipped';
+          else if (rank === ITEM_STAGE_RANK.delivered) partStatus = 'delivered';
+          else partStatus = order.status === 'paid' ? 'paid' : 'created';
+        }
+        const partCancelReason =
+          items.find((item) => item.status === 'cancelled' && item.cancelReason)?.cancelReason ??
+          order.cancelReason ??
+          null;
+        // Выручка — только по неотменённым позициям продавца.
+        const total = activeItems.reduce((sum, item) => sum + item.price * (item.quantity || 1), 0);
+        return {
+          id: order.id,
+          status: partStatus,
+          cancelReason: partStatus === 'cancelled' ? partCancelReason : null,
+          paymentMethod: order.paymentMethod ?? null,
+          paymentStatus: order.paymentStatus ?? 'on_delivery',
+          createdAt: order.createdAt,
+          address: order.address ?? null,
+          buyer: {
+            id: order.user?.id ?? null,
+            firstName: order.user?.firstName ?? null,
+            lastName: order.user?.lastName ?? null,
+            email: order.user?.email ?? null,
+          },
+          items,
+          total,
+        };
+      });
   }
 
   // Зачисления сайту (только админ): по каждой проданной позиции — отдельная запись.
@@ -219,6 +254,10 @@ export class OrdersService {
       }
       for (const item of order.items ?? []) {
         if (item.type !== 'pet') {
+          continue;
+        }
+        // Отменённая продавцом позиция (при живом заказе) выручку не приносит.
+        if (item.status === 'cancelled') {
           continue;
         }
         const animal = byId.get(item.itemId);
@@ -334,8 +373,11 @@ export class OrdersService {
   async cancel(id: string, user: User) {
     const order = await this.findById(id, user);
     this.assertCancellable(order);
-    // Возвращаем остаток по всем позициям отменяемого заказа.
-    await this.restoreStock(order.items ?? []);
+    // Возвращаем остаток по активным позициям: уже отменённые продавцом части
+    // возвращены на склад раньше — второй раз не возвращаем.
+    await this.restoreStock(
+      (order.items ?? []).filter((item) => this.effectiveItemStatus(order, item) !== 'cancelled'),
+    );
     order.status = 'cancelled';
     return this.orderRepo.save(order);
   }
@@ -349,6 +391,13 @@ export class OrdersService {
     const removed = (order.items ?? []).find((item) => item.itemId === itemId);
     if (!removed) {
       throw new NotFoundException('Item not found in order');
+    }
+    const removedStatus = this.effectiveItemStatus(order, removed);
+    if (removedStatus === 'cancelled') {
+      throw new BadRequestException('Позиция уже отменена продавцом');
+    }
+    if (removedStatus === 'shipped' || removedStatus === 'delivered') {
+      throw new BadRequestException('Позиция уже в доставке — отменить нельзя');
     }
     // Возвращаем остаток по отменяемой позиции.
     await this.restoreStock([removed]);
@@ -364,6 +413,9 @@ export class OrdersService {
     }
     if (remaining.length === 0) {
       order.status = 'cancelled';
+    } else {
+      // Оставшиеся позиции могли быть отменены продавцами — пересчитываем агрегат.
+      this.recomputeOrderStatus(order);
     }
     return this.orderRepo.save(order);
   }
@@ -375,98 +427,239 @@ export class OrdersService {
     if (order.status !== 'shipped') {
       throw new BadRequestException('Подтвердить получение можно только для заказа в доставке');
     }
+    this.markActiveItemsDelivered(order);
     order.status = 'delivered';
     return this.orderRepo.save(order);
   }
 
-  // Отмена заказа продавцом с указанием причины. Доступна, если в заказе есть товар продавца
-  // и заказ ещё можно отменить. Возвращаем остаток, ставим статус cancelled, сохраняем причину
-  // и уведомляем покупателя.
+  // Все активные (неотменённые) позиции получают статус delivered — доставка
+  // завершает заказ целиком, независимая подготовка частей на этом заканчивается.
+  private markActiveItemsDelivered(order: Order) {
+    (order.items ?? []).forEach((item) => {
+      if (item.type === 'pet' && this.effectiveItemStatus(order, item) !== 'cancelled') {
+        item.status = 'delivered';
+      }
+    });
+  }
+
+  // Отмена продавцом своей части заказа с указанием причины. Позиции других
+  // продавцов не затрагиваются; заказ целиком отменяется, только если отменены
+  // все позиции. Возвращаем остаток и уменьшаем сумму заказа на отменённую часть.
   async cancelBySeller(id: string, reason: string | undefined, user: User) {
     const order = await this.orderRepo.findOne({ where: { id } });
     if (!order) {
       throw new NotFoundException('Order not found');
     }
-    await this.assertSellerOwnsItem(order, user.id, 'Можно отменить только заказ со своим товаром');
-    if (order.status === 'shipped') {
-      throw new BadRequestException('Заказ уже в доставке — отменить нельзя');
-    }
+    const { items: mine, animalsById, partial } = await this.sellerItemsOf(
+      order,
+      user.id,
+      'Можно отменить только заказ со своим товаром',
+    );
     this.assertCancellable(order);
-    await this.restoreStock(order.items ?? []);
-    order.status = 'cancelled';
-    order.cancelReason = reason?.trim() || null;
+    const active = mine.filter((item) => this.effectiveItemStatus(order, item) !== 'cancelled');
+    if (!active.length) {
+      throw new BadRequestException('Ваши позиции в этом заказе уже отменены');
+    }
+    if (
+      active.some((item) => {
+        const status = this.effectiveItemStatus(order, item);
+        return status === 'shipped' || status === 'delivered';
+      })
+    ) {
+      throw new BadRequestException('Ваша часть заказа уже в доставке — отменить нельзя');
+    }
+    await this.restoreStock(active);
+    const reasonText = reason?.trim() || null;
+    // Сумма заказа уменьшается на отменённые позиции (по покупательской цене).
+    let removedAmount = 0;
+    for (const item of active) {
+      const animal = animalsById.get(item.itemId);
+      removedAmount += (animal?.price != null ? Number(animal.price) : 0) * (item.quantity || 1);
+      item.status = 'cancelled';
+      item.cancelReason = reasonText;
+    }
+    if (order.total != null && removedAmount > 0) {
+      order.total = Math.max(0, Number(order.total) - removedAmount);
+    }
+    this.recomputeOrderStatus(order);
+    if (order.status === 'cancelled') {
+      order.cancelReason = reasonText;
+    }
     const saved = await this.orderRepo.save(order);
     await this.notificationsService.create(order.user.id, {
       type: 'order_cancelled',
-      title: `Заказ №${orderNo(order.id)} отменён продавцом`,
-      body: order.cancelReason
-        ? `Причина: ${order.cancelReason}`
-        : 'Продавец отменил ваш заказ.',
+      title:
+        partial && order.status !== 'cancelled'
+          ? `Часть заказа №${orderNo(order.id)} отменена продавцом`
+          : `Заказ №${orderNo(order.id)} отменён продавцом`,
+      body: [
+        partial && order.status !== 'cancelled'
+          ? `Отменено: ${this.itemNames(active, animalsById)}.`
+          : null,
+        reasonText ? `Причина: ${reasonText}` : 'Продавец отменил ваш заказ.',
+      ]
+        .filter(Boolean)
+        .join(' '),
     });
     return saved;
   }
 
-  // Проверяет, что в заказе есть товар текущего продавца — иначе действие ему недоступно.
-  private async assertSellerOwnsItem(order: Order, userId: string, message: string) {
-    const myAnimals = await this.animalRepo.find({ where: { owner: { id: userId } } });
-    const myIds = new Set(myAnimals.map((animal) => animal.id));
-    const ownsItem = (order.items ?? []).some(
-      (item) => item.type === 'pet' && myIds.has(item.itemId),
-    );
-    if (!ownsItem) {
-      throw new ForbiddenException(message);
+  // Эффективный статус позиции: свой статус позиции, а у старых заказов (позиции
+  // без статуса) — статус заказа, если он уже про логистику/отмену.
+  private effectiveItemStatus(order: Order, item: OrderItem): OrderItemStatus | null {
+    if (item.status) {
+      return item.status;
+    }
+    return order.status === 'ready' ||
+      order.status === 'shipped' ||
+      order.status === 'delivered' ||
+      order.status === 'cancelled'
+      ? order.status
+      : null;
+  }
+
+  // Пересчёт агрегатного статуса заказа по позициям: отменён — если отменены все
+  // позиции, иначе минимальная стадия среди активных (позиции разных продавцов
+  // независимы, заказ «догоняет» самую отстающую часть). Стадию оплаты
+  // (created/paid) агрегат не трогает — это отдельный этап жизни заказа.
+  private recomputeOrderStatus(order: Order) {
+    const petItems = (order.items ?? []).filter((item) => item.type === 'pet');
+    if (!petItems.length) {
+      return;
+    }
+    const statuses = petItems.map((item) => this.effectiveItemStatus(order, item));
+    const active = statuses.filter((status) => status !== 'cancelled');
+    if (!active.length) {
+      order.status = 'cancelled';
+      return;
+    }
+    const rank = Math.min(...active.map((status) => (status ? ITEM_STAGE_RANK[status] : 0)));
+    if (rank === ITEM_STAGE_RANK.ready) order.status = 'ready';
+    else if (rank === ITEM_STAGE_RANK.shipped) order.status = 'shipped';
+    else if (rank === ITEM_STAGE_RANK.delivered) order.status = 'delivered';
+    else if (
+      order.status === 'ready' ||
+      order.status === 'shipped' ||
+      order.status === 'delivered' ||
+      order.status === 'cancelled'
+    ) {
+      // Защитная ветка: часть заказа снова в подготовке — агрегат откатывается.
+      order.status = 'created';
     }
   }
 
+  // Позиции заказа, принадлежащие продавцу (+ карта его товаров — для названий
+  // в уведомлениях). Если своих позиций нет — действие продавцу недоступно.
+  private async sellerItemsOf(order: Order, userId: string, message: string) {
+    const myAnimals = await this.animalRepo.find({ where: { owner: { id: userId } } });
+    const animalsById = new Map(myAnimals.map((animal) => [animal.id, animal] as [string, Animal]));
+    const items = (order.items ?? []).filter(
+      (item) => item.type === 'pet' && animalsById.has(item.itemId),
+    );
+    if (!items.length) {
+      throw new ForbiddenException(message);
+    }
+    // Частичный ли это заказ: есть ли в нём позиции других продавцов.
+    const partial = (order.items ?? []).some(
+      (item) => item.type === 'pet' && !animalsById.has(item.itemId),
+    );
+    return { items, animalsById, partial };
+  }
+
+  // Названия позиций для текстов уведомлений: «Tom», «Rex».
+  private itemNames(items: OrderItem[], animalsById: Map<string, Animal>) {
+    return items
+      .map((item) => `«${animalsById.get(item.itemId)?.name ?? 'товар'}»`)
+      .join(', ');
+  }
+
   // Отметка «готов к отправке» продавцом — первый шаг перед передачей в доставку.
-  // Доступна для созданного/оплаченного заказа с товаром продавца. Идемпотентна.
+  // Затрагивает только позиции этого продавца: части разных продавцов готовятся
+  // независимо. Идемпотентна.
   async markReady(id: string, user: User) {
     const order = await this.orderRepo.findOne({ where: { id } });
     if (!order) {
       throw new NotFoundException('Order not found');
     }
-    await this.assertSellerOwnsItem(
+    const { items: mine, animalsById, partial } = await this.sellerItemsOf(
       order,
       user.id,
       'Можно подготовить только заказ со своим товаром',
     );
-    if (order.status === 'ready') {
-      return order; // уже готов — ничего не меняем
+    const active = mine.filter((item) => this.effectiveItemStatus(order, item) !== 'cancelled');
+    if (!active.length) {
+      throw new BadRequestException('Ваши позиции в этом заказе отменены');
     }
-    if (order.status !== 'created' && order.status !== 'paid') {
-      throw new BadRequestException('Отметить готовым можно только новый заказ');
+    if (active.every((item) => this.effectiveItemStatus(order, item) === 'ready')) {
+      return order; // уже готово — ничего не меняем
     }
-    order.status = 'ready';
+    if (
+      active.some((item) => {
+        const status = this.effectiveItemStatus(order, item);
+        return status === 'shipped' || status === 'delivered';
+      })
+    ) {
+      throw new BadRequestException('Ваша часть заказа уже в доставке');
+    }
+    active.forEach((item) => {
+      item.status = 'ready';
+    });
+    this.recomputeOrderStatus(order);
     const saved = await this.orderRepo.save(order);
     await this.notificationsService.create(order.user.id, {
       type: 'order_ready',
-      title: `Заказ №${orderNo(order.id)} готов к отправке`,
-      body: 'Продавец подготовил ваш заказ к отправке.',
+      title: partial
+        ? `Часть заказа №${orderNo(order.id)} готова к отправке`
+        : `Заказ №${orderNo(order.id)} готов к отправке`,
+      body: partial
+        ? `Продавец подготовил к отправке: ${this.itemNames(active, animalsById)}.`
+        : 'Продавец подготовил ваш заказ к отправке.',
     });
     return saved;
   }
 
-  // Передача заказа в доставку продавцом. Доступна только после отметки «готов к отправке»
-  // (status === 'ready'). Ставит статус 'shipped' и уведомляет покупателя.
+  // Передача в доставку продавцом — только своей части заказа и только после
+  // отметки «готов к отправке». Части других продавцов не затрагиваются.
   async markShipped(id: string, user: User) {
     const order = await this.orderRepo.findOne({ where: { id } });
     if (!order) {
       throw new NotFoundException('Order not found');
     }
-    await this.assertSellerOwnsItem(
+    const { items: mine, animalsById, partial } = await this.sellerItemsOf(
       order,
       user.id,
       'Можно передать в доставку только заказ со своим товаром',
     );
-    if (order.status !== 'ready') {
+    const active = mine.filter((item) => this.effectiveItemStatus(order, item) !== 'cancelled');
+    if (!active.length) {
+      throw new BadRequestException('Ваши позиции в этом заказе отменены');
+    }
+    if (
+      active.every((item) => {
+        const status = this.effectiveItemStatus(order, item);
+        return status === 'shipped' || status === 'delivered';
+      })
+    ) {
+      return order; // уже в доставке — ничего не меняем
+    }
+    if (active.some((item) => this.effectiveItemStatus(order, item) === null)) {
       throw new BadRequestException('Сначала отметьте заказ готовым к отправке');
     }
-    order.status = 'shipped';
+    active.forEach((item) => {
+      if (this.effectiveItemStatus(order, item) === 'ready') {
+        item.status = 'shipped';
+      }
+    });
+    this.recomputeOrderStatus(order);
     const saved = await this.orderRepo.save(order);
     await this.notificationsService.create(order.user.id, {
       type: 'order_shipped',
-      title: `Заказ №${orderNo(order.id)} передан в доставку`,
-      body: 'Ваш заказ в доставке.',
+      title: partial
+        ? `Часть заказа №${orderNo(order.id)} передана в доставку`
+        : `Заказ №${orderNo(order.id)} передан в доставку`,
+      body: partial
+        ? `В доставке: ${this.itemNames(active, animalsById)}.`
+        : 'Ваш заказ в доставке.',
     });
     return saved;
   }
@@ -533,6 +726,7 @@ export class OrdersService {
     if (order.status !== 'shipped') {
       throw new BadRequestException('Передать покупателю можно только заказ в доставке');
     }
+    this.markActiveItemsDelivered(order);
     order.status = 'delivered';
     const saved = await this.orderRepo.save(order);
     await this.notificationsService.create(order.user.id, {

@@ -5,7 +5,7 @@ import { OrdersService } from './orders.service';
 const makeService = () => {
   const orderRepo = { find: jest.fn(), findOne: jest.fn(), save: jest.fn() };
   const userRepo = { findOne: jest.fn() };
-  const animalRepo = { find: jest.fn(), findOne: jest.fn() };
+  const animalRepo = { find: jest.fn(), findOne: jest.fn(), save: jest.fn() };
   const notifications = { create: jest.fn().mockResolvedValue(undefined) };
   const service = new OrdersService(
     orderRepo as any,
@@ -123,6 +123,62 @@ describe('OrdersService — двухшаговая отправка', () => {
     orderRepo.save.mockImplementation((o: any) => Promise.resolve(o));
     const result = await service.markShipped('o1', seller);
     expect(result.status).toBe('shipped');
+  });
+
+  it('заказ с товарами двух продавцов: готовность частей независима', async () => {
+    const { service, orderRepo, animalRepo, notifications } = makeService();
+    const multiOrder = {
+      id: 'o1',
+      status: 'paid',
+      user: { id: 'buyer1' },
+      items: [
+        { type: 'pet', itemId: 'A1', quantity: 1 },
+        { type: 'pet', itemId: 'B1', quantity: 1 },
+      ],
+    };
+    orderRepo.findOne.mockResolvedValue(multiOrder);
+    animalRepo.find.mockResolvedValue([{ id: 'A1', name: 'Tom' }]); // товары seller1
+    orderRepo.save.mockImplementation((o: any) => Promise.resolve(o));
+
+    // seller1 готовит и отправляет свою часть — позиция B1 второго продавца не трогается,
+    // агрегатный статус заказа остаётся paid (вторая часть ещё готовится).
+    const afterReady = await service.markReady('o1', seller);
+    expect(afterReady.items[0].status).toBe('ready');
+    expect(afterReady.items[1].status).toBeUndefined();
+    expect(afterReady.status).toBe('paid');
+    expect(notifications.create).toHaveBeenCalledWith(
+      'buyer1',
+      expect.objectContaining({ title: expect.stringContaining('Часть заказа') }),
+    );
+
+    const afterShip = await service.markShipped('o1', seller);
+    expect(afterShip.items[0].status).toBe('shipped');
+    expect(afterShip.items[1].status).toBeUndefined();
+    expect(afterShip.status).toBe('paid');
+  });
+
+  it('отмена продавцом затрагивает только его часть и уменьшает сумму', async () => {
+    const { service, orderRepo, animalRepo } = makeService();
+    const multiOrder = {
+      id: 'o1',
+      status: 'paid',
+      total: 300,
+      user: { id: 'buyer1' },
+      items: [
+        { type: 'pet', itemId: 'A1', quantity: 1 },
+        { type: 'pet', itemId: 'B1', quantity: 1 },
+      ],
+    };
+    orderRepo.findOne.mockResolvedValue(multiOrder);
+    animalRepo.find.mockResolvedValue([{ id: 'A1', name: 'Tom', price: 100 }]);
+    animalRepo.findOne.mockResolvedValue({ id: 'A1', stock: 0 }); // restoreStock
+    orderRepo.save.mockImplementation((o: any) => Promise.resolve(o));
+
+    const result = await service.cancelBySeller('o1', 'Закончился товар', seller);
+    expect(result.items[0]).toMatchObject({ status: 'cancelled', cancelReason: 'Закончился товар' });
+    expect(result.items[1].status).toBeUndefined();
+    expect(result.status).toBe('paid'); // заказ живёт: часть второго продавца активна
+    expect(Number(result.total)).toBe(200);
   });
 
   it('markDeliveredByCourier: только курьер и только из shipped', async () => {

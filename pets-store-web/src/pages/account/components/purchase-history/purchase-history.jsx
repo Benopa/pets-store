@@ -63,6 +63,15 @@ const PAYMENT_META = {
   on_delivery: { label: 'Оплата при получении', color: 'default', icon: <WalletOutlined /> },
 };
 
+// Статус отдельной позиции: в заказе с товарами разных продавцов части готовятся
+// независимо, у каждой позиции может быть свой статус (нет статуса — ещё готовится).
+const ITEM_STATUS_META = {
+  ready: { label: 'Готов к отправке', color: 'warning' },
+  shipped: { label: 'В доставке', color: 'processing' },
+  delivered: { label: 'Получен', color: 'success' },
+  cancelled: { label: 'Отменена продавцом', color: 'error' },
+};
+
 // Опции фильтра по статусу: «Все» + статусы из STATUS_META (метки держим в одном месте).
 const STATUS_OPTIONS = [
   { value: 'all', label: 'Все статусы' },
@@ -519,14 +528,20 @@ export const PurchaseHistory = () => {
                 const name = nameOf(it.itemId) || `Товар ${String(it.itemId).slice(0, 8)}`;
                 const price = priceOf(it.itemId);
                 const clickable = Boolean(animal);
-                const canCancelItem = detailCancellable && (detail.items?.length ?? 0) > 1;
+                // Свой статус позиции (часть заказа конкретного продавца).
+                const itemMeta = it.status ? ITEM_STATUS_META[it.status] : null;
+                // Отменить позицию можно, пока её часть не ушла в доставку и не отменена.
+                const canCancelItem =
+                  detailCancellable &&
+                  (detail.items?.length ?? 0) > 1 &&
+                  (!it.status || it.status === 'ready');
                 const info = (
                   <>
                     {img ? (
                       <img
                         src={img}
                         alt={name}
-                        className="h-12 w-12 shrink-0 rounded-lg object-cover"
+                        className={`h-12 w-12 shrink-0 rounded-lg object-cover ${it.status === 'cancelled' ? 'opacity-40' : ''}`}
                       />
                     ) : (
                       <div className="grid h-12 w-12 shrink-0 place-items-center rounded-lg bg-stone-100 text-stone-300">
@@ -534,12 +549,24 @@ export const PurchaseHistory = () => {
                       </div>
                     )}
                     <div className="min-w-0 flex-1">
-                      <Text className="block truncate">{name}</Text>
+                      <span className="flex items-center gap-2 min-w-0">
+                        <Text className="block truncate">{name}</Text>
+                        {itemMeta && (
+                          <Tag color={itemMeta.color} className="!mr-0 shrink-0">
+                            {itemMeta.label}
+                          </Tag>
+                        )}
+                      </span>
                       <Text type="secondary" className="text-xs">
                         {price != null
                           ? `${it.quantity || 1} × ${price} ₽`
                           : `${it.quantity || 1} шт.`}
                       </Text>
+                      {it.status === 'cancelled' && it.cancelReason && (
+                        <Text type="secondary" className="block text-xs">
+                          Причина: {it.cancelReason}
+                        </Text>
+                      )}
                     </div>
                   </>
                 );
