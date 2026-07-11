@@ -316,7 +316,7 @@ export const AccountPage = () => {
       </Link>
 
       <Title level={2} className="!mb-6 !font-light">
-        Личный кабинет
+        Личный кабинет / Profile
       </Title>
 
       {/* Шапка профиля со статистикой */}
