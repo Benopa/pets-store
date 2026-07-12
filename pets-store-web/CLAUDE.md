@@ -22,6 +22,7 @@ npm run cypress        # Cypress интерактивно
 ```
 
 ### Тесты
+
 - **Unit (Vitest, jsdom)** — конфиг в `vite.config.js` (блок `test`), setup `src/test/setup.js`. Санки-запросы тестируются прямым вызовом `thunk(dispatch, getState)` (helper `src/test/run-thunk.js`) с моком модуля `axios` (`@/shared/api` реэкспортит тот же глобальный `axios`). Файлы — рядом со слайсами (`entities/*/model/*.test.js`).
 - **E2E (Cypress)** — `cypress.config.mjs` (baseUrl :5173), спеки `cypress/e2e/*.cy.js`, команды `cypress/support/commands.js` (логин/регистрация через API напрямую к :3000). Требуют поднятый стек (бэк+фронт+Postgres).
 
