@@ -10,7 +10,7 @@ import { addToCart } from '@/entities/cart';
 import { toggleFavorite } from '@/entities/favorites';
 import { createConversation } from '@/entities/chat';
 import { fullscreenModalProps, useIsMobile } from '@/shared/lib';
-import { useMemo } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useSelector, useDispatch } from 'react-redux';
 import {
@@ -18,6 +18,7 @@ import {
   App,
   Card,
   Empty,
+  FloatButton,
   Modal,
   Button,
   Skeleton,
@@ -31,6 +32,7 @@ import {
   HeartOutlined,
   HeartFilled,
   MessageOutlined,
+  VerticalAlignTopOutlined,
 } from '@ant-design/icons';
 
 const { Title, Text, Paragraph } = Typography;
@@ -75,6 +77,15 @@ export const HomePage = () => {
       sorted.sort((a, b) => new Date(b.createdAt ?? 0) - new Date(a.createdAt ?? 0));
     return sorted;
   }, [visibleAnimals, sort]);
+
+  // Кнопка «наверх»: появляется, когда блок поиска/фильтров уходит за верх экрана.
+  const filterRef = useRef(null);
+  const [showBackTop, setShowBackTop] = useState(false);
+  useEffect(() => {
+    const observer = new IntersectionObserver(([entry]) => setShowBackTop(!entry.isIntersecting));
+    if (filterRef.current) observer.observe(filterRef.current);
+    return () => observer.disconnect();
+  }, []);
 
   const closeModal = () => dispatch(setCurrentAnimal(null));
 
@@ -206,7 +217,7 @@ export const HomePage = () => {
         </Title>
         {!loading && <Text type="secondary">{visibleAnimals.length} шт.</Text>}
       </div>
-      <div className="mb-8">
+      <div className="mb-8" ref={filterRef}>
         <Filter />
       </div>
 
@@ -242,6 +253,13 @@ export const HomePage = () => {
             <AnimalCard key={animal.id} animal={animal} readOnly={readOnly} />
           ))}
         </div>
+      )}
+      {showBackTop && (
+        <FloatButton
+          icon={<VerticalAlignTopOutlined />}
+          onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })}
+          aria-label="Наверх"
+        />
       )}
       <Modal
         open={Boolean(currentAnimal)}
