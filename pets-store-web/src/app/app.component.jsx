@@ -52,6 +52,7 @@ export const App = () => {
   const store = useStore();
   const { categoryId, search } = useSelector((state) => state.animal);
   const accessToken = useSelector((state) => state.auth.accessToken);
+  // второй комент
   useEffect(() => {
     // Грузим весь каталог в стор — экраны (главная/корзина/кабинет) фильтруют и
     // резолвят товары на клиенте. Без явного limit бэкенд режет до 20, из-за чего
