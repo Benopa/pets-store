@@ -18,8 +18,12 @@ lerna-debug.log*
 # ---- Local / env ----
 *.local
 
-# Реальный .env для docker-compose (секреты). В репозитории — только .env.deploy.example.
-/.env
+# Реальные .env с секретами (корневой для docker-compose, api-swagger/.env и т.д.).
+# В репозитории — только примеры: .env.example / .env.deploy.example.
+.env
+.env.*
+!.env.example
+!.env.*.example
 
 # ---- Editor / IDE ----
 **/.vscode/*

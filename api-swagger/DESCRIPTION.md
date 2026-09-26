@@ -41,7 +41,7 @@ Created on first start (can be overridden by env vars):
 ## Run with Docker Hub image
 ```
 docker pull vmalkov/petstore-nest:latest
-docker run -p 3000:3000 --env-file env.example vmalkov/petstore-nest:latest
+docker run -p 3000:3000 --env-file .env.example vmalkov/petstore-nest:latest
 ```
 
 Or pass variables manually:
@@ -57,7 +57,7 @@ docker run -p 3000:3000 \
 ## Build locally
 ```
 docker build -t petstore-nest .
-docker run -p 3000:3000 --env-file env.example petstore-nest
+docker run -p 3000:3000 --env-file .env.example petstore-nest
 ```
 
 ## Environment variables

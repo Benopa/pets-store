@@ -17,7 +17,7 @@ npm install
 
 Создай `.env` на основе примера:
 ```powershell
-Copy-Item env.example .env
+Copy-Item .env.example .env
 ```
 
 Открой `.env` и для Windows задай:
